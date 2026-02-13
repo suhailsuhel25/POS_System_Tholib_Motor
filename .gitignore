@@ -4,7 +4,10 @@
 /node_modules
 /.pnp
 .pnp.js
+<<<<<<< HEAD
 .yarn/install-state.gz
+=======
+>>>>>>> 7af64e46021fe920570c8d6e1bd05500dfc13060
 
 # testing
 /coverage
@@ -27,6 +30,10 @@ yarn-error.log*
 
 # local env files
 .env*.local
+<<<<<<< HEAD
+=======
+.env
+>>>>>>> 7af64e46021fe920570c8d6e1bd05500dfc13060
 
 # vercel
 .vercel
@@ -34,6 +41,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+<<<<<<< HEAD
 
 # vscode
 .vscode
+=======
+>>>>>>> 7af64e46021fe920570c8d6e1bd05500dfc13060
+.env
