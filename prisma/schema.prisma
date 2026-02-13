@@ -84,12 +84,6 @@ enum TransactionStatus {
   RETUR
 }
 
-enum CatProduct {
-  ELECTRO
-  DRINK
-  FOOD
-  FASHION
-}
 
 enum UserRole {
   OWNER

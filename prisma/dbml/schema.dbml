@@ -58,6 +58,11 @@ Table Transaction {
   products OnSaleProduct [not null]
 }
 
+Table ShopData {
+  id String [pk]
+  name String
+}
+
 Enum TransactionStatus {
   SUKSES
   RETUR

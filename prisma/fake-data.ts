@@ -95,3 +95,14 @@ export function fakeTransactionComplete() {
     createdAt: new Date(),
   };
 }
+export function fakeShopData() {
+  return {
+    name: undefined,
+  };
+}
+export function fakeShopDataComplete() {
+  return {
+    id: faker.string.uuid(),
+    name: undefined,
+  };
+}
