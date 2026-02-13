@@ -1,9 +1,9 @@
 import * as z from 'zod';
 
-import { CatProduct } from '@prisma/client';
+const VALID_CATEGORIES = ['ELECTRO', 'DRINK', 'FOOD', 'FASHION'] as const;
 
-const categoryValidator = (val: string): val is CatProduct =>
-  Object.values(CatProduct).includes(val as CatProduct);
+const categoryValidator = (val: string): boolean =>
+  VALID_CATEGORIES.includes(val as any);
 
 export const productSchema = z
   .object({
@@ -29,7 +29,7 @@ export const productSchema = z
       .refine(categoryValidator, {
         message: 'Select category',
         params: {
-          validValues: Object.values(CatProduct).join(', '),
+          validValues: VALID_CATEGORIES.join(', '),
         },
       }),
   })
