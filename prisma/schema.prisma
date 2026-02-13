@@ -90,6 +90,11 @@ enum UserRole {
   UNKNOW
 }
 
+model ShopData {
+  id   String @id @default(cuid())
+  name String?
+}
+
 enum Brand {
   HONDA
   YAMAHA
