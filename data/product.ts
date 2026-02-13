@@ -35,9 +35,9 @@ export const fetchProduct = async ({
           select: {
             id: true,
             name: true,
-            cat: true,
+            category: true,
             stock: true,
-            price: true,
+            buyPrice: true,
           },
         },
       },
