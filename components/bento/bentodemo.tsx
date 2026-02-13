@@ -47,18 +47,24 @@ export function JiraDashboard() {
     const startDate = new Date();
     startDate.setDate(endDate.getDate() - 7);
 
-    Promise.all([
-      axios.get('/api/dashboard'),
-      axios.get('/api/dashboard/recent-transactions'),
-      axios.get('/api/dashboard/low-stock'),
-      axios.get(`/api/profit?start=${startDate.toISOString()}&end=${endDate.toISOString()}`)
-    ])
-      .then(([kpiRes, txRes, stockRes, profitRes]) => {
-        setKpis(kpiRes.data);
-        setTransactions(txRes.data.transactions || []);
-        setLowStock(stockRes.data.products || []);
-        setProfitData(profitRes.data.groupedData || []);
-      })
+    // Fetch KPIs separately (usually fastest)
+    axios.get('/api/dashboard')
+      .then(res => setKpis(res.data))
+      .catch(console.error);
+
+    // Fetch Recent Transactions
+    axios.get('/api/dashboard/recent-transactions')
+      .then(res => setTransactions(res.data.transactions || []))
+      .catch(console.error);
+
+    // Fetch Low Stock
+    axios.get('/api/dashboard/low-stock')
+      .then(res => setLowStock(res.data.products || []))
+      .catch(console.error);
+
+    // Fetch Profit Data (usually heaviest)
+    axios.get(`/api/profit?start=${startDate.toISOString()}&end=${endDate.toISOString()}`)
+      .then(res => setProfitData(res.data.groupedData || []))
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
@@ -83,13 +89,6 @@ export function JiraDashboard() {
 
   const chartSeries = [{ name: 'Penjualan', data: profitData.map(d => d.grossIncome) }];
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <span className="text-sm text-[#626F86] animate-pulse">Memuat dashboard...</span>
-      </div>
-    );
-  }
 
   return (
     <div className="h-full overflow-y-auto bg-[#F4F5F7] dark:bg-[#1D2125]">
@@ -163,7 +162,15 @@ export function JiraDashboard() {
                 <span className="text-[10px] font-bold text-[#626F86] dark:text-[#8C9BAB]">Gross Revenue</span>
               </div>
             </div>
-            <div className="p-6 flex-1 min-h-[250px]">
+            <div className="p-6 flex-1 min-h-[250px] relative">
+              {loading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-white/50 dark:bg-[#22272B]/50 z-10 rounded-lg">
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="w-6 h-6 border-2 border-[#0052CC] border-t-transparent rounded-full animate-spin" />
+                    <span className="text-[10px] font-bold text-[#626F86]">Memproses Data...</span>
+                  </div>
+                </div>
+              )}
               {typeof window !== 'undefined' && <Chart options={chartOptions} series={chartSeries} type="area" height="100%" />}
             </div>
           </div>

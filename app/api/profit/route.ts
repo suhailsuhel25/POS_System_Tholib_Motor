@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
     const endDate = new Date(end);
     endDate.setUTCHours(23, 59, 59, 999); // Set end date to the end of the day
 
-    // Query transactions within the date range, including related products and product details
+    // Query transactions with selected fields for performance
     const transactions = await prisma.transaction.findMany({
       where: {
         createdAt: {
@@ -32,12 +32,19 @@ export async function GET(req: NextRequest) {
         },
         status: 'SUKSES',
       },
-      include: {
+      select: {
+        createdAt: true,
         products: {
-          include: {
+          select: {
+            quantity: true,
             product: {
-              include: {
-                productstock: true,
+              select: {
+                sellprice: true,
+                productstock: {
+                  select: {
+                    buyPrice: true,
+                  },
+                },
               },
             },
           },
