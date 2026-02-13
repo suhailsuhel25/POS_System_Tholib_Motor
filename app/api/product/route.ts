@@ -150,14 +150,14 @@ export const GET = async (request: Request) => {
     if (brand && categories === null) {
       const catResult = results[resultIndex++];
       categories = catResult.map((c: any) => c.category);
-      setCachedCategories(brand, categories);
+      setCachedCategories(brand, categories!);
     }
 
     // Process master categories if fetched
     if (brand && masterCategories === null) {
       const mcResult = results[resultIndex++];
       masterCategories = mcResult.map((c: any) => c.masterCategory);
-      setCachedMasterCategories(brand, masterCategories);
+      setCachedMasterCategories(brand, masterCategories!);
     }
 
     return NextResponse.json({
