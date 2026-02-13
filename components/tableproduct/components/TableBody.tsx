@@ -2,7 +2,6 @@
 import { TableBody, TableCell, TableRow } from '@/components/ui/table';
 import Dropdown from './btn/Dropdown';
 import { Badge } from '@/components/ui/badge';
-import { CatProduct } from '@prisma/client';
 import SkeletonRow from '@/components/skeleton/products';
 import { useState, useEffect } from 'react';
 
@@ -13,9 +12,9 @@ interface ProductData {
   productstock: {
     id: string;
     name: string;
-    cat: CatProduct;
+    category: string;
     stock: number;
-    price: number;
+    buyPrice: number;
   };
 }
 
@@ -55,8 +54,7 @@ const TableBodyProduct: React.FC<TableBodyProductProps> = ({ data }) => {
               {/* Render product category */}
               <TableCell className="pl-4">
                 <Badge variant="outline">
-                  {item.productstock.cat.charAt(0).toUpperCase() +
-                    item.productstock.cat.slice(1).toLowerCase()}
+                  {item.productstock.category}
                 </Badge>
               </TableCell>
               {/* Render product sell price */}
@@ -67,7 +65,7 @@ const TableBodyProduct: React.FC<TableBodyProductProps> = ({ data }) => {
               </TableCell>
               {/* Render product price */}
               <TableCell className="hidden md:table-cell pl-4">
-                $ {item.productstock.price}
+                $ {item.productstock.buyPrice}
               </TableCell>
               {/* Render dropdown for product actions */}
               <TableCell>

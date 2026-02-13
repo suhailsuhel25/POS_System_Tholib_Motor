@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { DeleteAlertDialog } from "./alertDelete";
 import { SheetEdit } from "./sheetEdit";
-import { CatProduct } from "@prisma/client";
 
 type Product = {
   id: string;
@@ -19,9 +18,9 @@ type Product = {
   productstock: {
     id: string;
     name: string;
-    cat: CatProduct;
+    category: string;
     stock: number;
-    price: number;
+    buyPrice: number;
   };
 };
 
