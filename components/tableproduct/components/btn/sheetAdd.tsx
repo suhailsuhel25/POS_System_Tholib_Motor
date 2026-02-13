@@ -20,12 +20,13 @@ import {
 } from '@/components/ui/select';
 import { Cross2Icon, ReloadIcon } from '@radix-ui/react-icons';
 import { useEffect, useState } from 'react';
-import { CatProduct } from '@prisma/client';
 import { productSchema } from '@/schema';
 import { z } from 'zod';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
+
+const CATEGORY_PRODUCTS = ['ELECTRO', 'DRINK', 'FOOD', 'FASHION'];
 export function SheetAdd({
   open,
   onClose,
@@ -43,8 +44,7 @@ export function SheetAdd({
   const buyPriceNumber = parseFloat(buyPrice) || 0;
   const stockProductNumber = parseFloat(stockProduct) || 0;
   const sellPriceNumber = parseFloat(sellPrice) || 0;
-  const catProductValues = Object.values(CatProduct);
-  const filteredCatProducts = catProductValues.filter((product) =>
+  const filteredCatProducts = CATEGORY_PRODUCTS.filter((product) =>
     product.toLowerCase().includes(searchTerm.toLowerCase())
   );
   const [loading, setLoading] = useState(false);
