@@ -205,7 +205,7 @@ export function SheetAdd({
             <Select
               value={categoryProduct}
               onValueChange={(newValue) => {
-                setCategories(newValue as CatProduct);
+                setCategories(newValue);
                 setError((prevError) => ({
                   ...prevError,
                   category: '',
