@@ -32,9 +32,9 @@ type Data = {
   productstock: {
     id: string;
     name: string;
-    cat: CatProduct;
+    category: string;
     stock: number;
-    price: number;
+    buyPrice: number;
   };
 };
 
@@ -49,15 +49,15 @@ export function SheetEdit({
 }) {
   const [productName, setProductName] = useState(data.productstock.name || '');
   const [categoryProduct, setCategories] = useState<string>(
-    data.productstock.cat ?? ''
+    data.productstock.category ?? ''
   );
   const [sellPrice, setSellPrice] = useState(data.sellprice || '');
-  const [buyPrice, setBuyPrice] = useState(data.productstock.price || '');
+  const [buyPrice, setBuyPrice] = useState(data.productstock.buyPrice || '');
   const [stockProduct, setStockProduct] = useState(
     data.productstock.stock || ''
   );
   const [searchTerm, setSearchTerm] = useState<string>(
-    data.productstock.cat ?? ''
+    data.productstock.category ?? ''
   );
   const [error, setError] = useState<{ [key: string]: string }>({});
 
@@ -75,20 +75,20 @@ export function SheetEdit({
   useEffect(() => {
     if (!open) {
       // Reset input value when sheet is closed
-      setSearchTerm(data.productstock.cat ?? '');
+      setSearchTerm(data.productstock.category ?? '');
       setProductName(data.productstock.name || '');
       setSellPrice(data.sellprice || '');
       setStockProduct(data.productstock.stock || '');
-      setBuyPrice(data.productstock.price || '');
-      setCategories(data.productstock.cat ?? '');
+      setBuyPrice(data.productstock.buyPrice || '');
+      setCategories(data.productstock.category ?? '');
     }
   }, [
     open,
     data.productstock.name,
     data.sellprice,
     data.productstock.stock,
-    data.productstock.cat,
-    data.productstock.price,
+    data.productstock.category,
+    data.productstock.buyPrice,
   ]);
 
   const handleCancel = () => {
@@ -111,10 +111,10 @@ export function SheetEdit({
     // Check if any changes were made
     if (
       productName === data.productstock.name &&
-      buyPriceNumber === data.productstock.price &&
+      buyPriceNumber === data.productstock.buyPrice &&
       sellPriceNumber === data.sellprice &&
       stockProductNumber === data.productstock.stock &&
-      categoryProduct === data.productstock.cat
+      categoryProduct === data.productstock.category
     ) {
       toast.info('No changes made.');
       setLoading(false);
