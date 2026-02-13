@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { db as prisma } from '@/lib/db';
 
 // GET request handler to fetch onSaleProducts by transactionId
 export async function GET(
@@ -11,59 +9,40 @@ export async function GET(
   const { id } = params;
 
   try {
-    // Fetch transaction with the given id
+    // Fetch transaction with the given id, including detailed product information
     const transaction = await prisma.transaction.findUnique({
       where: { id },
+      include: {
+        products: {
+          include: {
+            product: {
+              include: {
+                productstock: true,
+              },
+            },
+          },
+          orderBy: {
+            product: {
+              productstock: {
+                name: 'asc',
+              },
+            },
+          },
+        },
+      },
     });
 
     // Return 404 if transaction is not found
     if (!transaction) {
       return NextResponse.json(
         { message: 'Transaction not found' },
-        { status: 405 }
-      );
-    }
-
-    // Fetch onSaleProducts with detailed product information
-    const onSaleProducts = await prisma.onSaleProduct.findMany({
-      where: { transactionId: id },
-      select: {
-        id: true,
-        transactionId: true,
-        productId: true,
-        quantity: true,
-        product: {
-          select: {
-            sellprice: true,
-            productstock: {
-              select: {
-                name: true,
-                cat: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: {
-        product: {
-          productstock: {
-            name: 'asc',
-          },
-        },
-      },
-    });
-
-    // Return 404 if no onSaleProducts are found for the given transactionId
-    if (!onSaleProducts.length) {
-      return NextResponse.json(
-        { message: 'OnSaleProduct not found' },
         { status: 404 }
       );
     }
 
-    return NextResponse.json(onSaleProducts, { status: 200 });
+    return NextResponse.json(transaction, { status: 200 });
   } catch (error) {
-    console.error(error);
+    console.error('API Error fetching transaction:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -71,77 +50,68 @@ export async function GET(
   }
 }
 
-// PATCH request handler to update transaction and product stocks
 export const PATCH = async (
   request: Request,
   { params }: { params: { id: string } }
 ) => {
   try {
-    const prisma = new PrismaClient();
-
+    const { id } = params;
     const body = await request.json();
+    const { status } = body;
 
-    // Split productId and quantity strings and convert quantities to numbers
-    const productIds = body.productId.split(',').map((id: string) => id.trim());
-    const quantities = Array.isArray(body.qTy)
-      ? body.qTy.map(parseFloat)
-      : [parseFloat(body.qTy)];
+    if (status === 'RETUR') {
+      // Logic for return: change status and RESTORE stock
+      const result = await prisma.$transaction(async (tx) => {
+        // 1. Get the transaction with products
+        const transaction = await tx.transaction.findUnique({
+          where: { id },
+          include: {
+            products: {
+              include: {
+                product: true
+              }
+            }
+          }
+        });
 
-    // Check if productIds and quantities have the same length
-    if (productIds.length !== quantities.length) {
-      throw new Error('Product IDs and quantities must have the same length');
-    }
+        if (!transaction) throw new Error('Transaction not found');
+        if (transaction.status === 'RETUR') throw new Error('Transaction is already returned');
 
-    const updatedStocks = [];
-    for (let i = 0; i < productIds.length; i++) {
-      const productId = productIds[i];
-      const quantity = quantities[i];
+        // 2. Restore stock for each product
+        for (const item of transaction.products) {
+          await tx.productStock.update({
+            where: { id: item.productId },
+            data: {
+              stock: {
+                increment: item.quantity
+              }
+            }
+          });
+        }
 
-      // Find existing stock for the product
-      const existingStock = await prisma.productStock.findFirst({
-        where: { id: productId },
+        // 3. Update transaction status
+        return await tx.transaction.update({
+          where: { id },
+          data: { status: 'RETUR' }
+        });
       });
 
-      // Throw error if stock not found
-      if (!existingStock) {
-        throw new Error(`Stock not found for product ID: ${productId}`);
-      }
-
-      // Update stock quantity
-      const updatedStock = await prisma.productStock.update({
-        where: { id: productId },
-        data: { stock: existingStock.stock - quantity },
-      });
-
-      updatedStocks.push(updatedStock);
+      return NextResponse.json(result, { status: 200 });
     }
 
-    // Parse totalAmount from request body
-    const totalAmount = parseFloat(body.totalAmount);
-    if (isNaN(totalAmount)) {
-      throw new Error('Invalid totalAmount');
-    }
+    // Default patch logic (if needed for other updates)
+    const updateData: any = {};
+    if (body.totalAmount !== undefined) updateData.totalAmount = body.totalAmount;
+    if (body.isComplete !== undefined) updateData.isComplete = body.isComplete;
 
-    // Update transaction with totalAmount and mark as complete
-    const editTransaction = await prisma.transaction.update({
-      where: {
-        id: String(params.id),
-      },
-      data: {
-        totalAmount,
-        isComplete: true,
-      },
+    const updatedTransaction = await prisma.transaction.update({
+      where: { id },
+      data: updateData,
     });
 
-    await prisma.$disconnect();
-
-    // Return updated transaction and stocks
-    return NextResponse.json(
-      { editTransaction, updatedStocks },
-      { status: 201 }
-    );
+    return NextResponse.json(updatedTransaction, { status: 200 });
   } catch (error: any) {
-    console.error('Error:', error.message);
+    console.error('Error updating transaction:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 };
@@ -170,7 +140,5 @@ export const DELETE = async (
     }
 
     return NextResponse.json({ error: error.message }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
   }
 };

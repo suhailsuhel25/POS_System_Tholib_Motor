@@ -1,9 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-// Instantiate Prisma client
-const prisma = new PrismaClient();
+import { db as prisma } from '@/lib/db';
 
 // Handler function for GET requests
 export async function GET(req: NextRequest) {
@@ -33,6 +30,7 @@ export async function GET(req: NextRequest) {
           gte: new Date(startDate),
           lte: new Date(endDate),
         },
+        status: 'SUKSES',
       },
       include: {
         products: {
@@ -47,16 +45,11 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    // Query shop data to get the tax value
-    const shopData = await prisma.shopData.findFirst();
-    const taxRate = shopData?.tax ?? 0;
-
     // Initialize groupedData with default 0 values for each day in the range
     const groupedData: {
       date: string;
       netIncome: number;
-      taxIncome: number;
-      grossIncomeWithTax: number;
+      grossIncome: number;
     }[] = [];
 
     // Populate default data for each day in the date range
@@ -65,8 +58,7 @@ export async function GET(req: NextRequest) {
       groupedData.push({
         date: currentDate.toISOString().split('T')[0],
         netIncome: 0,
-        taxIncome: 0,
-        grossIncomeWithTax: 0,
+        grossIncome: 0,
       });
       currentDate.setDate(currentDate.getDate() + 1);
     }
@@ -76,32 +68,36 @@ export async function GET(req: NextRequest) {
       const date = transaction.createdAt.toISOString().split('T')[0];
       let costPriceTotal = 0;
       let sellPriceTotal = 0;
-      let taxProfit = 0;
 
       // Process each onSaleProduct in the transaction
-      transaction.products.forEach((onSaleProduct) => {
+      transaction.products.forEach((onSaleProduct: any) => {
         const productStock = onSaleProduct.product;
-        const product = onSaleProduct.product.productstock;
-        const sellPrice = productStock.sellprice * onSaleProduct.quantity;
-        const buyPrice = product.price * onSaleProduct.quantity;
-        const tax = sellPrice * (taxRate / 100); // Calculate tax based on the tax rate
-        const sellPriceWithTax = sellPrice + tax;
-        const profit = sellPrice - buyPrice;
-        costPriceTotal += profit;
-        sellPriceTotal += sellPriceWithTax;
-        taxProfit += sellPriceWithTax - sellPrice;
+        const product = onSaleProduct.product?.productstock;
+
+        if (productStock && product) {
+          const quantity = onSaleProduct.quantity;
+          const currentSellPrice = Number(productStock.sellprice || 0) * quantity;
+          const currentBuyPrice = Number(product.buyPrice || 0) * quantity;
+
+          // Logic: If buyPrice exists (> 0), use real calculation.
+          // Otherwise, fallback to 3000 per item as requested.
+          const itemProfit = (Number(product.buyPrice || 0) > 0)
+            ? (currentSellPrice - currentBuyPrice)
+            : (3000 * quantity);
+
+          costPriceTotal += itemProfit;
+          sellPriceTotal += currentSellPrice;
+        }
       });
 
       const netIncome = costPriceTotal;
-      const taxIncome = taxProfit;
-      const grossIncomeWithTax = sellPriceTotal;
+      const grossIncome = sellPriceTotal;
 
       // Update groupedData with calculated values
       const existingData = groupedData.find((data) => data.date === date);
       if (existingData) {
         existingData.netIncome += netIncome;
-        existingData.taxIncome += taxIncome;
-        existingData.grossIncomeWithTax += grossIncomeWithTax;
+        existingData.grossIncome += grossIncome;
       }
     });
 
@@ -114,8 +110,6 @@ export async function GET(req: NextRequest) {
       { error: 'Internal Server Error' },
       { status: 500 }
     );
-  } finally {
-    // Disconnect the Prisma client after the request is processed
-    await prisma.$disconnect();
   }
 }
+

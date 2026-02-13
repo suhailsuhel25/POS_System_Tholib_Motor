@@ -35,8 +35,7 @@ const ChartFour: React.FC = () => {
   const [dataChart, setDataChart] = useState<{
     [date: string]: {
       netIncome: number;
-      taxIncome: number;
-      grossIncomeWithTax: number;
+      grossIncome: number;
     };
   }>({});
   const [startDate, setStartDate] = useState<string>('2024-05-01');
@@ -50,11 +49,7 @@ const ChartFour: React.FC = () => {
         data: [44, 55, 41, 67, 22],
       },
       {
-        name: 'Tax',
-        data: [22, 31, 30, 12, 20],
-      },
-      {
-        name: 'Gross Income With Tax',
+        name: 'Gross Income',
         data: [50, 70, 60, 80, 40],
       },
     ],
@@ -132,21 +127,18 @@ const ChartFour: React.FC = () => {
           acc: {
             [date: string]: {
               netIncome: number;
-              taxIncome: number;
-              grossIncomeWithTax: number;
+              grossIncome: number;
             };
           },
           curr: {
             date: string;
             netIncome: number;
-            taxIncome: number;
-            grossIncomeWithTax: number;
+            grossIncome: number;
           }
         ) => {
           acc[curr.date] = {
             netIncome: curr.netIncome,
-            taxIncome: curr.taxIncome,
-            grossIncomeWithTax: curr.grossIncomeWithTax,
+            grossIncome: curr.grossIncome,
           };
           return acc;
         },
@@ -170,13 +162,10 @@ const ChartFour: React.FC = () => {
       const netIncomeData = Object.values(dataChart).map((entry) =>
         Number(entry.netIncome.toFixed(1))
       );
-      const taxIncomeData = Object.values(dataChart).map((entry) =>
-        Number(entry.taxIncome.toFixed(1))
+      const grossIncomeData = Object.values(dataChart).map((entry) =>
+        Number(entry.grossIncome.toFixed(1))
       );
-      const grossIncomeWithTaxData = Object.values(dataChart).map((entry) =>
-        Number(entry.grossIncomeWithTax.toFixed(1))
-      );
-      const maxChartData = Math.max(...grossIncomeWithTaxData) + 1;
+      const maxChartData = Math.max(...grossIncomeData) + 1;
 
       setState((prevState) => ({
         ...prevState,
@@ -187,11 +176,7 @@ const ChartFour: React.FC = () => {
           },
           {
             ...prevState.series[1],
-            data: taxIncomeData,
-          },
-          {
-            ...prevState.series[2],
-            data: grossIncomeWithTaxData,
+            data: grossIncomeData,
           },
         ],
         options: {

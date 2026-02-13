@@ -1,8 +1,5 @@
-import { PrismaClient } from '@prisma/client';
+import { db as prisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
-
-// Initialize Prisma client
-const prisma = new PrismaClient();
 
 export const PATCH = async (
   request: Request,
@@ -25,20 +22,7 @@ export const PATCH = async (
       return NextResponse.json(updatedStorename, { status: 201 });
     }
 
-    // Update the store tax if 'tax' is in the body
-    if ('tax' in body) {
-      const updatedStoretax = await prisma.shopData.update({
-        where: {
-          id: String(params.id),
-        },
-        data: {
-          tax: body.tax,
-        },
-      });
-      return NextResponse.json(updatedStoretax, { status: 201 });
-    }
-
-    // If neither 'shopName' nor 'tax' is in the body, return an error
+    // If 'shopName' is not in the body, return an error
     return NextResponse.json(
       { error: 'Invalid request body' },
       { status: 400 }
@@ -46,8 +30,5 @@ export const PATCH = async (
   } catch (error: any) {
     // Handle errors
     return NextResponse.json({ error: error.message }, { status: 500 });
-  } finally {
-    // Disconnect Prisma client
-    await prisma.$disconnect();
   }
 };

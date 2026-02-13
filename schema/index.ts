@@ -51,9 +51,6 @@ export const onsaleSchema = z.object({
 export const orderSchema = z.object({
   qTy: z.number().positive('Qty must be a positive number').min(1, 'Qty min 1'),
 });
-export const taxSchema = z.object({
-  tax: z.number().min(0, 'Tax min 0').max(100, 'Tax max 100'),
-});
 export const shopnameSchema = z.object({
   storeName: z
     .string()

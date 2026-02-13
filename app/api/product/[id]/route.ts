@@ -1,8 +1,5 @@
-import { CatProduct, PrismaClient } from '@prisma/client';
+import { db as prisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
-
-// Initialize Prisma client
-const prisma = new PrismaClient();
 
 // Handler function for PATCH request
 export const PATCH = async (
@@ -18,10 +15,13 @@ export const PATCH = async (
         id: String(params.id),
       },
       data: {
-        name: body.productName,
-        stock: body.stockProduct,
-        price: body.buyPrice,
-        cat: body.category as CatProduct,
+        name: body.name,
+        stock: body.stock,
+        brand: body.brand,
+        buyPrice: body.buyPrice,
+        sellPrice: body.sellPrice,
+        masterCategory: body.masterCategory,
+        category: body.category || '',
         Product: {
           update: {
             where: {
@@ -39,13 +39,10 @@ export const PATCH = async (
     });
 
     // Return the updated product in the response
-    return NextResponse.json(editProduct, { status: 201 });
+    return NextResponse.json(editProduct, { status: 200 });
   } catch (error: any) {
     // Handle errors
     return NextResponse.json({ error: error.message }, { status: 500 });
-  } finally {
-    // Disconnect Prisma client
-    await prisma.$disconnect();
   }
 };
 
@@ -67,8 +64,5 @@ export const DELETE = async (
   } catch (error: any) {
     // Handle errors
     return NextResponse.json({ error: error.message }, { status: 500 });
-  } finally {
-    // Disconnect Prisma client
-    await prisma.$disconnect();
   }
 };

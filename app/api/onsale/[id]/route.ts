@@ -1,8 +1,5 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-// Initialize Prisma client
-const prisma = new PrismaClient();
+import { db as prisma } from '@/lib/db';
 
 // Handler function for PATCH request
 export const PATCH = async (
@@ -27,9 +24,6 @@ export const PATCH = async (
   } catch (error: any) {
     // Handle errors
     return NextResponse.json({ error: error.message }, { status: 500 });
-  } finally {
-    // Disconnect Prisma client
-    await prisma.$disconnect();
   }
 };
 
@@ -51,8 +45,5 @@ export const DELETE = async (
   } catch (error: any) {
     // Handle errors
     return NextResponse.json({ error: error.message }, { status: 500 });
-  } finally {
-    // Disconnect Prisma client
-    await prisma.$disconnect();
   }
 };

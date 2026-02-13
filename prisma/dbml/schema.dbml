@@ -17,18 +17,24 @@ Table ProductStock {
   id String [pk]
   name String [not null]
   imageProduct String
-  price Float [not null]
-  stock Float [not null]
-  cat CatProduct [not null]
-  Product Product [not null]
+  stock Int [not null, default: 0]
+  brand Brand [not null]
+  buyPrice Float [not null, default: 0]
+  category String [not null]
+  createdAt DateTime [default: `now()`, not null]
+  masterCategory String [not null]
+  sellPrice Float [not null, default: 0]
+  skuManual String [unique, not null]
+  updatedAt DateTime [not null]
+  Product Product
 }
 
 Table Product {
   id String [pk]
   productId String [unique, not null]
-  productstock ProductStock [not null]
   sellprice Float [not null]
   OnSaleProduct OnSaleProduct [not null]
+  productstock ProductStock [not null]
 }
 
 Table OnSaleProduct {
@@ -44,15 +50,17 @@ Table OnSaleProduct {
 Table Transaction {
   id String [pk]
   totalAmount Decimal
-  createdAt DateTime [default: `now()`, not null]
+  paymentAmount Float [default: 0]
+  changeAmount Float [default: 0]
+  status TransactionStatus [not null, default: 'SUKSES']
   isComplete Boolean [not null, default: false]
+  createdAt DateTime [default: `now()`, not null]
   products OnSaleProduct [not null]
 }
 
-Table ShopData {
-  id String [pk]
-  tax Int
-  name String
+Enum TransactionStatus {
+  SUKSES
+  RETUR
 }
 
 Enum UserRole {
@@ -61,14 +69,14 @@ Enum UserRole {
   UNKNOW
 }
 
-Enum CatProduct {
-  ELECTRO
-  DRINK
-  FOOD
-  FASHION
+Enum Brand {
+  HONDA
+  YAMAHA
+  KAWASAKI
+  SUZUKI
 }
 
-Ref: Product.productId > ProductStock.id [delete: Cascade]
+Ref: Product.productId - ProductStock.id [delete: Cascade]
 
 Ref: OnSaleProduct.productId > Product.productId [delete: Cascade]
 

@@ -19,7 +19,6 @@ interface ChartTwoState {
 
 const ChartTwo: React.FC = () => {
   const [dataChart, setDataChart] = useState<number[]>([]);
-  const [dataChartWithoutTax, setDataChartWithoutTax] = useState<number[]>([]);
   const [startDate, setStartDate] = useState<string>('2024-05-01');
   const [endDate, setEndDate] = useState<string>('2024-05-15');
 

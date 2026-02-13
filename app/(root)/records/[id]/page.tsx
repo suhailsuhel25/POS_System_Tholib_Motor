@@ -1,49 +1,37 @@
 'use client';
-import { Printer } from 'lucide-react';
+import { Printer, ChevronRight, RotateCcw } from 'lucide-react';
+import { format } from 'date-fns';
+import { id } from 'date-fns/locale';
 
 import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
-  CardTitle,
 } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 import axios from 'axios';
 import { useEffect, useRef, useState } from 'react';
-import { TransactionData } from '@/types/transaction';
 import { useReactToPrint } from 'react-to-print';
 import { useRouter } from 'next/navigation';
 
+import { ReceiptContent } from '@/components/ReceiptContent';
+
 export default function DetailPage({ params }: { params: { id: string } }) {
   // State variables
-  const [taxRate, setTaxRate] = useState<number>(0);
-  const [transactionData, setTransactionData] = useState<TransactionData[]>([]);
+  const [transaction, setTransaction] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [printing, setPrinting] = useState(false);
+  const [updating, setUpdating] = useState(false);
 
   // Reference for printing
   const route = useRouter();
   const componentRef = useRef<HTMLDivElement>(null);
 
-  // Calculate subtotal, tax, and total
-  let subtotal = 0;
-  transactionData.forEach((item) => {
-    subtotal += item.product.sellprice * item.quantity;
-  });
-  const tax = subtotal * (taxRate / 100);
-  const total = subtotal + tax;
-
-  // Redirect to error page
-  const handleRedirect = () => {
-    route.push(`/_error`);
-  };
-
   // Handle printing
   const handlePrint = useReactToPrint({
     content: () => componentRef.current,
-    documentTitle: 'Receipt',
+    documentTitle: `Receipt-${params.id}`,
     onBeforeGetContent: () => {
       setPrinting(true);
     },
@@ -52,153 +40,111 @@ export default function DetailPage({ params }: { params: { id: string } }) {
     },
   });
 
-  // Fetch shop data on component mount
-  useEffect(() => {
-    const fetchShopData = async () => {
-      try {
-        const response = await axios.get('/api/shopdata');
-        const shopdata = response.data.data;
-
-        if (response.status === 200) {
-          setTaxRate(shopdata.tax);
-        } else {
-          console.log('Failed to fetch data:', shopdata.error);
-        }
-      } catch (error) {
-        console.error('Failed to fetch data:', error);
-      }
-    };
-
-    fetchShopData();
-  }, []);
-
   // Fetch transaction data for the given ID on component mount
   useEffect(() => {
-    let isMounted = true;
-
-    const fetchTransactionData = async () => {
-      if (isMounted) {
-        try {
-          if (!params.id) {
-            return;
-          }
-          const response = await axios.get(`/api/transactions/${params.id}`);
-          if (response.status === 200 && isMounted) {
-            const data = response.data;
-            setTransactionData(Array.isArray(data) ? data : [data]);
-          } else if (response.status === 404 && isMounted) {
-            setTransactionData([]);
-            handleRedirect();
-          } else {
-            console.error('Failed to fetch transaction data');
-          }
-        } catch (error) {
-          if (axios.isAxiosError(error)) {
-            if (error.response && error.response.status === 404 && isMounted) {
-              setTransactionData([]);
-              handleRedirect();
-            } else {
-              console.error(
-                'An error occurred while fetching transaction data:',
-                error
-              );
-            }
-          } else {
-            console.error('An unexpected error occurred:', error);
-          }
+    const fetchTransaction = async () => {
+      try {
+        setLoading(true);
+        const response = await axios.get(`/api/transactions/${params.id}`);
+        if (response.status === 200) {
+          setTransaction(response.data);
         }
+      } catch (error) {
+        console.error('Error fetching details:', error);
+        route.push('/records');
+      } finally {
+        setLoading(false);
       }
     };
 
-    fetchTransactionData();
-    return () => {
-      isMounted = false;
-    };
-  }, [params.id]);
+    if (params.id) {
+      fetchTransaction();
+    }
+  }, [params.id, route]);
+
+  const handleReturn = async () => {
+    if (!confirm('Apakah Anda yakin ingin membatalkan transaksi ini (RETUR)? Stok barang akan dikembalikan.')) return;
+
+    try {
+      setUpdating(true);
+      const response = await axios.patch(`/api/transactions/${params.id}`, {
+        status: 'RETUR'
+      });
+
+      if (response.status === 200) {
+        setTransaction(response.data);
+        alert('Transaksi berhasil dibatalkan dan stok telah dikembalikan.');
+      }
+    } catch (error) {
+      console.error('Error returning transaction:', error);
+      alert('Gagal memproses retur.');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="w-full h-full flex items-center justify-center">
+        <p className="text-muted-foreground animate-pulse">Memuat detail transaksi...</p>
+      </div>
+    );
+  }
+
+  if (!transaction) return null;
+
+  // Transform data for ReceiptContent
+  const formattedData = {
+    id: transaction.id,
+    createdAt: transaction.createdAt,
+    items: (transaction.products || []).map((item: any) => ({
+      name: item.product?.productstock?.name || 'Produk Tidak Diketahui',
+      brand: item.product?.productstock?.brand,
+      quantity: item.quantity,
+      price: Number(item.product?.sellprice || 0)
+    })),
+    total: Number(transaction.totalAmount || 0),
+    paymentAmount: Number(transaction.paymentAmount || 0),
+    changeAmount: Number(transaction.changeAmount || 0),
+    status: transaction.status
+  };
 
   // Render the component
   return (
-    <div className="w-full h-full">
-      <style jsx>{`
-        @media print {
-          @page {
-            size: 80mm 100mm; /* Adjust to your thermal paper size */
-          }
-          /* Other print styles */
-          .print-card {
-            width: 80mm;
-            max-width: 80mm;
-            padding: 4mm;
-            border: none;
-            font-size: 12px;
-            font-family: 'Courier New', Courier, monospace;
-          }
-          .print-card-header {
-            background-color: #f0f0f0;
-          }
-          .print-card-content {
-            padding: 0;
-          }
-        }
-      `}</style>
-      <Card
-        className="w-full flex flex-col h-full print-card overflow-hidden print:w-full print:max-w-[80mm] print:p-4 print:border print:text-[12px] print:font-mono"
-        ref={componentRef}
-      >
-        <CardHeader className="flex flex-row items-start bg-muted/50 print-card-header">
-          <div className="grid gap-0.5">
-            <CardTitle className="group flex items-center gap-2 text-lg">
-              {params.id}
-            </CardTitle>
-            <CardDescription>Date: November 23, 2023</CardDescription>
-          </div>
-          <div className="ml-auto flex items-center gap-1 print:hidden">
+    <div className="w-full h-full p-6 flex flex-col items-center overflow-y-auto bg-[#F4F5F7] dark:bg-[#1D2125]">
+      <div className="mb-6 w-full max-w-[500px] flex justify-between items-center print:hidden">
+        <Button variant="ghost" className="gap-2" onClick={() => route.back()}>
+          <ChevronRight className="w-4 h-4 rotate-180" />
+          Kembali
+        </Button>
+        <div className="flex items-center gap-2">
+          {transaction.status !== 'RETUR' && (
             <Button
-              size="icon"
+              size="sm"
               variant="outline"
-              className="h-8 gap-1"
-              onClick={handlePrint}
-              disabled={total === 0 || printing}
+              className="border-[#DE350B] text-[#DE350B] hover:bg-[#FFEBE6] gap-2 shadow-sm"
+              onClick={handleReturn}
+              disabled={updating}
             >
-              <Printer />
+              <RotateCcw className="w-4 h-4" />
+              Retur
             </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="p-6 text-sm print-card-content">
-          <div className="grid gap-3">
-            <div className="font-semibold">Order Details</div>
-            <ul className="grid gap-3">
-              {transactionData.map((item, index) => (
-                <li key={index} className="flex items-center justify-between">
-                  <span className="text-muted-foreground">
-                    {item.product.productstock.name} x{' '}
-                    <span>{item.quantity}</span>
-                  </span>
-                  <span>
-                    ${(item.product.sellprice * item.quantity).toFixed(2)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-            <Separator className="my-2" />
-            <ul className="grid gap-3">
-              <li className="flex items-center justify-between">
-                <span className="text-muted-foreground">Subtotal</span>
-                <span>${subtotal.toFixed(2)}</span>
-              </li>
-              <li className="flex items-center justify-between">
-                <span className="text-muted-foreground">Tax</span>
-                <span>${tax.toFixed(2)}</span>
-              </li>
-              <li className="flex items-center justify-between font-semibold">
-                <span className="text-muted-foreground">Total</span>
-                <span>${total.toFixed(2)}</span>
-              </li>
-            </ul>
-          </div>
-        </CardContent>
-        <CardFooter className="flex flex-row items-center border-t bg-muted/50 px-6 mt-auto"></CardFooter>
-      </Card>
+          )}
+          <Button
+            size="sm"
+            className="bg-[#0052CC] hover:bg-[#0747A6] text-white gap-2 px-4 shadow-sm"
+            onClick={handlePrint}
+            disabled={printing}
+          >
+            <Printer className="w-4 h-4" />
+            Cetak
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex flex-col items-center">
+        <ReceiptContent ref={componentRef} transaction={formattedData} />
+      </div>
     </div>
   );
 }

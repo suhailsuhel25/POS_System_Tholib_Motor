@@ -1,8 +1,5 @@
-import { PrismaClient } from '@prisma/client';
+import { db as prisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
-
-// Initialize Prisma client
-const prisma = new PrismaClient();
 
 // Handler function for POST request
 export const POST = async (request: Request) => {
@@ -45,8 +42,5 @@ export const POST = async (request: Request) => {
   } catch (error: any) {
     // Handle errors
     return NextResponse.json({ error: error.message }, { status: 500 });
-  } finally {
-    // Disconnect Prisma client
-    await prisma.$disconnect();
   }
 };

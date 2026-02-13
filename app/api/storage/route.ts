@@ -1,8 +1,5 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-// Initialize Prisma client
-const prisma = new PrismaClient();
+import { db as prisma } from '@/lib/db';
 
 // Handler function for GET request to fetch product stocks
 export async function GET() {
@@ -26,8 +23,5 @@ export async function GET() {
       { error: 'Failed to fetch product stocks' },
       { status: 500 }
     );
-  } finally {
-    // Disconnect Prisma client
-    await prisma.$disconnect();
   }
 }

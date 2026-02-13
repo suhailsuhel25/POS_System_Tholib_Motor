@@ -1,9 +1,5 @@
-import { PrismaClient } from '@prisma/client';
+import { db as prisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
-import { v4 as uuidv4 } from 'uuid';
-
-// Initialize Prisma client
-const prisma = new PrismaClient();
 
 export const PATCH = async (
   request: Request,
@@ -21,7 +17,7 @@ export const PATCH = async (
     });
 
     // Calculate the new stock by adding the body's stockProduct to the current stock
-    const newStock = currentProduct?.stock + body.stockProduct;
+    const newStock = (currentProduct?.stock || 0) + body.stockProduct;
 
     // Update the product's stock
     const updatedProduct = await prisma.productStock.update({
@@ -38,8 +34,5 @@ export const PATCH = async (
   } catch (error: any) {
     // Handle errors
     return NextResponse.json({ error: error.message }, { status: 500 });
-  } finally {
-    // Disconnect Prisma client
-    await prisma.$disconnect();
   }
 };

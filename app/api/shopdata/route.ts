@@ -1,18 +1,21 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-// Instantiate Prisma client
-const prisma = new PrismaClient();
+import { db as prisma } from '@/lib/db';
 
 // Handler function for GET requests
 export async function GET(req: NextRequest) {
   try {
     // Fetch shopData from the database
-    const shopData = await prisma.shopData.findMany();
+    let data = await prisma.shopData.findFirst();
 
-    // Extract the first item from the result
-    const data = shopData[0];
+    // If no data exists, create a default one
+    if (!data) {
+      data = await prisma.shopData.create({
+        data: {
+          name: 'My Store',
+        },
+      });
+    }
 
     // Return the data as a JSON response with a 200 status code
     return NextResponse.json({ data }, { status: 200 });
@@ -25,8 +28,5 @@ export async function GET(req: NextRequest) {
       { error: 'Failed to fetch shop data. Please try again later.' },
       { status: 500 }
     );
-  } finally {
-    // Disconnect the Prisma client after the request is processed
-    await prisma.$disconnect();
   }
 }

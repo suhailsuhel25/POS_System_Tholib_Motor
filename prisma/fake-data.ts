@@ -1,4 +1,4 @@
-import { UserRole, CatProduct } from '@prisma/client';
+import { TransactionStatus, UserRole, Brand } from '@prisma/client';
 import { faker } from '@faker-js/faker';
 import Decimal from 'decimal.js';
 
@@ -30,9 +30,11 @@ export function fakeProductStock() {
   return {
     name: faker.person.fullName(),
     imageProduct: undefined,
-    price: faker.number.float(),
-    stock: faker.number.float(),
-    cat: faker.helpers.arrayElement([CatProduct.ELECTRO, CatProduct.DRINK, CatProduct.FOOD, CatProduct.FASHION] as const),
+    brand: faker.helpers.arrayElement([Brand.HONDA, Brand.YAMAHA, Brand.KAWASAKI, Brand.SUZUKI] as const),
+    category: faker.lorem.words(5),
+    masterCategory: faker.lorem.words(5),
+    skuManual: faker.lorem.words(5),
+    updatedAt: faker.date.anytime(),
   };
 }
 export function fakeProductStockComplete() {
@@ -40,9 +42,15 @@ export function fakeProductStockComplete() {
     id: faker.string.uuid(),
     name: faker.person.fullName(),
     imageProduct: undefined,
-    price: faker.number.float(),
-    stock: faker.number.float(),
-    cat: faker.helpers.arrayElement([CatProduct.ELECTRO, CatProduct.DRINK, CatProduct.FOOD, CatProduct.FASHION] as const),
+    stock: 0,
+    brand: faker.helpers.arrayElement([Brand.HONDA, Brand.YAMAHA, Brand.KAWASAKI, Brand.SUZUKI] as const),
+    buyPrice: 0,
+    category: faker.lorem.words(5),
+    createdAt: new Date(),
+    masterCategory: faker.lorem.words(5),
+    sellPrice: 0,
+    skuManual: faker.lorem.words(5),
+    updatedAt: faker.date.anytime(),
   };
 }
 export function fakeProduct() {
@@ -80,20 +88,10 @@ export function fakeTransactionComplete() {
   return {
     id: faker.string.uuid(),
     totalAmount: undefined,
-    createdAt: new Date(),
+    paymentAmount: 0,
+    changeAmount: 0,
+    status: TransactionStatus.SUKSES,
     isComplete: false,
-  };
-}
-export function fakeShopData() {
-  return {
-    tax: undefined,
-    name: undefined,
-  };
-}
-export function fakeShopDataComplete() {
-  return {
-    id: faker.string.uuid(),
-    tax: undefined,
-    name: undefined,
+    createdAt: new Date(),
   };
 }

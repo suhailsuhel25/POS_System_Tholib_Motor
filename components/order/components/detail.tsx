@@ -40,15 +40,13 @@ export default function Detail({
   const [loading, setLoading] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [error, setError] = useState<{ [key: string]: string }>({});
-  const [taxRate, setTaxRate] = useState<number>(0);
 
-  // Calculating subtotal, tax, and total
+  // Calculating subtotal and total
   let subtotal = 0;
   data.forEach((item) => {
     subtotal += item.product.sellprice * item.quantity;
   });
-  const tax = subtotal * (taxRate / 100);
-  const total = subtotal + tax;
+  const total = subtotal;
 
   // Other calculations
   const totalNumber = parseFloat(String(total)) || 0;
@@ -56,37 +54,7 @@ export default function Detail({
   const productIds = data.map((item) => item.productId).join(', ');
   const currentDate = format(new Date(), 'MMMM dd, yyyy');
 
-  // Fetching tax rate from the server
-  useEffect(() => {
-    const fetchShopData = async () => {
-      try {
-        const isOnline = navigator.onLine;
 
-        if (!isOnline) {
-          toast.error(
-            'You are offline. Please check your internet connection.'
-          );
-          return;
-        }
-
-        const response = await axios.get('/api/shopdata');
-        const shopdata = response.data.data;
-
-        if (response.status === 200) {
-          setTaxRate(shopdata.tax);
-        } else {
-          toast.error('Failed to fetch data: ' + shopdata.error);
-        }
-      } catch (error: any) {
-        toast.error(
-          'Failed to fetch data: ' +
-            (error.response?.data.error || error.message)
-        );
-      }
-    };
-
-    fetchShopData();
-  }, []);
 
   // Printing function using useReactToPrint
   const handlePrint = useReactToPrint({
@@ -214,16 +182,8 @@ export default function Detail({
             </ul>
             {/* Separator */}
             <Separator className="my-2" />
-            {/* Subtotal, tax, and total */}
+            {/* Total */}
             <ul className="grid gap-3">
-              <li className="flex items-center justify-between">
-                <span className="text-muted-foreground">Subtotal</span>
-                <span>${subtotal.toFixed(2)}</span>
-              </li>
-              <li className="flex items-center justify-between">
-                <span className="text-muted-foreground">Tax</span>
-                <span>${tax.toFixed(2)}</span>
-              </li>
               <li className="flex items-center justify-between font-semibold">
                 <span className="text-muted-foreground">Total</span>
                 <span>${total.toFixed(2)}</span>
