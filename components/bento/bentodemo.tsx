@@ -41,6 +41,11 @@ export function JiraDashboard() {
   const [lowStock, setLowStock] = useState<LowStockItem[]>([]);
   const [profitData, setProfitData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const endDate = new Date();
@@ -171,7 +176,7 @@ export function JiraDashboard() {
                   </div>
                 </div>
               )}
-              {typeof window !== 'undefined' && <Chart options={chartOptions} series={chartSeries} type="area" height="100%" />}
+              {mounted && <Chart options={chartOptions} series={chartSeries} type="area" height="100%" />}
             </div>
           </div>
 
