@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: 'POS Kasir',
   webDir: 'public',
   server: {
-    url: 'http://192.168.5.23:3000',
+    url: 'https://tholib-motor.vercel.app/',
     cleartext: true
   }
 };

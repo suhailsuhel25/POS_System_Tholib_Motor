@@ -81,7 +81,7 @@ export default function DetailPage({ params }: { params: { id: string } }) {
         changeAmount: Number(transaction.changeAmount || 0),
         discountAmount: Number(transaction.discountAmount || 0),
         footerMessage: 'Barang yang sudah dibeli tidak dapat ditukar atau dikembalikan.',
-        appUrl: 'http://192.168.5.23:3000'
+        appUrl: 'https://tholib-motor.vercel.app/'
       });
       
       await BluetoothPrinterService.printRawData(mac, dataToPrint);

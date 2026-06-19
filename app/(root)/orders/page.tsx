@@ -176,7 +176,7 @@ export default function KasirPage() {
                   changeAmount: paymentAmount - total,
                   discountAmount,
                   footerMessage: 'Barang yang sudah dibeli tidak dapat ditukar atau dikembalikan.',
-                  appUrl: 'http://192.168.5.23:3000'
+                  appUrl: 'https://tholib-motor.vercel.app/'
                 });
                 await BluetoothPrinterService.printRawData(mac, dataToPrint);
                 toast.success('Struk berhasil dicetak!');
