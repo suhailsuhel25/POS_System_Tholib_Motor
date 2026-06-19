@@ -25,7 +25,7 @@ interface RootLayoutProps {
   children: React.ReactNode;
 }
 
-const navItems = [
+const navItems: { name: string; href: string; icon: any; subItems?: { name: string; href: string }[] }[] = [
   { name: 'Dashboard', href: '/home', icon: LayoutDashboard },
   { name: 'Kasir', href: '/orders', icon: CreditCard },
   { name: 'Stok Barang', href: '/product', icon: Package },
