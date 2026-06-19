@@ -69,79 +69,59 @@ export const GET = async (request: Request) => {
     let categories = brand ? getCachedCategories(brand) : null;
     let masterCategories = brand ? getCachedMasterCategories(brand) : null;
 
-    const queries: Promise<any>[] = [];
+    // Run queries sequentially to prevent connection pool exhaustion
+    const rawProducts = await prisma.productStock.findMany({
+      where,
+      orderBy: { name: 'asc' },
+      take: limit,
+      skip: offset,
+      select: {
+        id: true,
+        name: true,
+        brand: true,
+        category: true,
+        masterCategory: true,
+        skuManual: true,
+        barcode: true,
+        buyPrice: true,
+        sellPrice: true,
+        stock: true,
+        imageProduct: true,
+      },
+    });
 
-    queries.push(
-      prisma.productStock.findMany({
-        where,
-        orderBy: { name: 'asc' },
-        take: limit,
-        skip: offset,
-        select: {
-          id: true,
-          name: true,
-          brand: true,
-          category: true,
-          masterCategory: true,
-          skuManual: true,
-          barcode: true,
-          buyPrice: true,
-          sellPrice: true,
-          stock: true,
-          imageProduct: true,
-        },
-      })
-    );
-
+    let totalCount = skipCount ? -1 : 0;
     if (!skipCount) {
-      queries.push(prisma.productStock.count({ where }));
+      totalCount = await prisma.productStock.count({ where });
     }
 
     if (brand && categories === null) {
-      queries.push(
-        prisma.productStock.findMany({
-          where: { brand },
-          select: { category: true },
-          distinct: ['category'],
-          orderBy: { category: 'asc' },
-        })
-      );
+      const catResult = await prisma.productStock.findMany({
+        where: { brand },
+        select: { category: true },
+        distinct: ['category'],
+        orderBy: { category: 'asc' },
+      });
+      categories = catResult.map((c: any) => c.category);
+      setCachedCategories(brand, categories!);
     }
 
     if (brand && masterCategories === null) {
-      queries.push(
-        prisma.productStock.findMany({
-          where: { brand },
-          select: { masterCategory: true },
-          distinct: ['masterCategory'],
-          orderBy: { masterCategory: 'asc' },
-        })
-      );
+      const mcResult = await prisma.productStock.findMany({
+        where: { brand },
+        select: { masterCategory: true },
+        distinct: ['masterCategory'],
+        orderBy: { masterCategory: 'asc' },
+      });
+      masterCategories = mcResult.map((c: any) => c.masterCategory);
+      setCachedMasterCategories(brand, masterCategories!);
     }
-
-    const results = await Promise.all(queries);
-
-    let resultIndex = 0;
-    const rawProducts = results[resultIndex++];
-    const totalCount = skipCount ? -1 : results[resultIndex++];
 
     const products = rawProducts.map((p: any) => ({
       ...p,
       buyPrice: Number(p.buyPrice),
       sellPrice: Number(p.sellPrice),
     }));
-
-    if (brand && categories === null) {
-      const catResult = results[resultIndex++];
-      categories = catResult.map((c: any) => c.category);
-      setCachedCategories(brand, categories!);
-    }
-
-    if (brand && masterCategories === null) {
-      const mcResult = results[resultIndex++];
-      masterCategories = mcResult.map((c: any) => c.masterCategory);
-      setCachedMasterCategories(brand, masterCategories!);
-    }
 
     return NextResponse.json({
       products,

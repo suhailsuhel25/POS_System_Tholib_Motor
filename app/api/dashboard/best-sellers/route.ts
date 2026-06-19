@@ -17,19 +17,20 @@ export async function GET() {
             take: 5,
         });
 
-        // Fetch product details for each best seller
-        const productsWithDetails = await Promise.all(
-            bestSellers.map(async (item) => {
-                const product = await prisma.product.findUnique({
-                    where: { productId: item.productId },
-                    include: { productstock: true },
-                });
-                return {
-                    ...product,
-                    totalSold: item._sum.quantity || 0,
-                };
-            })
-        );
+        // Fetch product details for each best seller using a single query to prevent pool exhaustion
+        const productIds = bestSellers.map((b) => b.productId);
+        const products = await prisma.product.findMany({
+            where: { productId: { in: productIds } },
+            include: { productstock: true },
+        });
+
+        const productsWithDetails = bestSellers.map((item) => {
+            const product = products.find((p) => p.productId === item.productId);
+            return {
+                ...product,
+                totalSold: item._sum.quantity || 0,
+            };
+        });
 
         return NextResponse.json({ products: productsWithDetails }, { status: 200 });
     } catch (error) {

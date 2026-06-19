@@ -5,21 +5,19 @@ import { db as prisma } from '@/lib/db';
 // Handler function for GET request
 export async function GET(req: NextRequest) {
   try {
-    // Run all aggregation queries in parallel
-    const [totalStock, totalAmountResult, totalQuantityResult, lowStockCount] = await Promise.all([
-      prisma.productStock.count(),
-      prisma.transaction.aggregate({
-        where: { status: 'SUKSES' },
-        _sum: { totalAmount: true },
-      }),
-      prisma.onSaleProduct.aggregate({
-        where: { transaction: { status: 'SUKSES' } },
-        _sum: { quantity: true },
-      }),
-      prisma.productStock.count({
-        where: { stock: { lt: 5 } },
-      })
-    ]);
+    // Run aggregation queries sequentially to prevent connection pool exhaustion
+    const totalStock = await prisma.productStock.count();
+    const totalAmountResult = await prisma.transaction.aggregate({
+      where: { status: 'SUKSES' },
+      _sum: { totalAmount: true },
+    });
+    const totalQuantityResult = await prisma.onSaleProduct.aggregate({
+      where: { transaction: { status: 'SUKSES' } },
+      _sum: { quantity: true },
+    });
+    const lowStockCount = await prisma.productStock.count({
+      where: { stock: { lt: 5 } },
+    });
 
     // Return aggregated data in the response
     return NextResponse.json(

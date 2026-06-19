@@ -19,44 +19,43 @@ export async function GET(req: NextRequest) {
     const endDate = new Date(end);
     endDate.setUTCHours(23, 59, 59, 999);
 
-    // Fetch transactions and expenses in parallel
-    const [transactions, expenses] = await Promise.all([
-      prisma.transaction.findMany({
-        where: {
-          createdAt: { gte: startDate, lte: endDate },
-          status: 'SUKSES',
-        },
-        select: {
-          createdAt: true,
-          discountAmount: true,
-          paymentAmount: true,
-          totalAmount: true,
-          products: {
-            select: {
-              quantity: true,
-              product: {
-                select: {
-                  sellprice: true,
-                  productstock: {
-                    select: { buyPrice: true },
-                  },
+    // Fetch transactions and expenses sequentially to prevent connection pool exhaustion
+    const transactions = await prisma.transaction.findMany({
+      where: {
+        createdAt: { gte: startDate, lte: endDate },
+        status: 'SUKSES',
+      },
+      select: {
+        createdAt: true,
+        discountAmount: true,
+        paymentAmount: true,
+        totalAmount: true,
+        products: {
+          select: {
+            quantity: true,
+            product: {
+              select: {
+                sellprice: true,
+                productstock: {
+                  select: { buyPrice: true },
                 },
               },
             },
           },
         },
-      }),
-      prisma.expense.findMany({
-        where: {
-          createdAt: { gte: startDate, lte: endDate },
-        },
-        select: {
-          createdAt: true,
-          amount: true,
-          category: true,
-        },
-      }),
-    ]);
+      },
+    });
+
+    const expenses = await prisma.expense.findMany({
+      where: {
+        createdAt: { gte: startDate, lte: endDate },
+      },
+      select: {
+        createdAt: true,
+        amount: true,
+        category: true,
+      },
+    });
 
     // Initialize groupedData
     const groupedData: {
@@ -132,10 +131,10 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json({ groupedData }, { status: 200 });
-  } catch (error) {
-    console.error('Error occurred:', error);
+  } catch (error: any) {
+    console.error('Error occurred:', error.message, error.stack);
     return NextResponse.json(
-      { error: 'Internal Server Error' },
+      { error: error.message || 'Internal Server Error' },
       { status: 500 }
     );
   }

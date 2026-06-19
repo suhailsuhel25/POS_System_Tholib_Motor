@@ -230,6 +230,20 @@
   }
 }
 
+/* Landscape/Portrait utilities */
+@media (orientation: landscape) {
+  .landscape\:hidden { display: none !important; }
+  .landscape\:block { display: block !important; }
+  .landscape\:flex { display: flex !important; }
+  .landscape\:grid { display: grid !important; }
+  .landscape\:hidden-portrait { display: none !important; }
+}
+@media (orientation: portrait) {
+  .portrait\:hidden { display: none !important; }
+  .portrait\:block { display: block !important; }
+  .portrait\:flex { display: flex !important; }
+}
+
 /* Mobile touch improvements */
 @media (max-width: 1023px) {
   input[type="number"] {
@@ -248,6 +262,11 @@
 @media (max-height: 500px) and (orientation: landscape) {
   .safe-area-bottom {
     padding-bottom: 0 !important;
+  }
+  /* Compact inputs in landscape */
+  input[type="number"], input[type="text"], select {
+    font-size: 14px !important;
+    height: 36px !important;
   }
 }
 

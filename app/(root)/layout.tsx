@@ -182,14 +182,14 @@ export default function RootLayout({ children }: RootLayoutProps) {
           </button>
         </div>
 
-        <main className="flex-1 overflow-y-auto pb-20 lg:pb-0">
+        <main className="flex-1 overflow-y-auto pb-16 lg:pb-0 landscape:pb-0">
           {children}
         </main>
       </div>
 
-      {/* MOBILE BOTTOM NAV */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-[#22272B] border-t border-[#DFE1E6] dark:border-[#2C333A] lg:hidden safe-area-bottom">
-        <div className="flex items-center justify-around h-16 px-2">
+      {/* MOBILE BOTTOM NAV - Hidden in landscape */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-[#22272B] border-t border-[#DFE1E6] dark:border-[#2C333A] lg:hidden safe-area-bottom portrait:block landscape:hidden">
+        <div className="flex items-center justify-around h-14 px-1">
           {bottomNavItems.map((item) => {
             const active = isActive(item.href);
             const Icon = item.icon;
@@ -197,14 +197,14 @@ export default function RootLayout({ children }: RootLayoutProps) {
               <Link
                 key={item.name}
                 href={item.href}
-                className={`flex flex-col items-center justify-center gap-0.5 min-w-[52px] py-1 rounded-lg transition-colors ${
+                className={`flex flex-col items-center justify-center gap-0.5 min-w-[48px] py-1 rounded-lg transition-colors ${
                   active
                     ? 'text-[#0052CC] dark:text-[#579DFF]'
                     : 'text-[#626F86] dark:text-[#8C9BAB]'
                 }`}
               >
                 <Icon className="w-5 h-5" />
-                <span className="text-[10px] font-semibold">{item.name}</span>
+                <span className="text-[9px] font-semibold">{item.name}</span>
               </Link>
             );
           })}

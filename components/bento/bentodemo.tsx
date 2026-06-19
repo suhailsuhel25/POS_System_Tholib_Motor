@@ -43,37 +43,43 @@ export function JiraDashboard() {
   const [profitData, setProfitData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const [startDate, setStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
+    return d.toISOString().split('T')[0];
+  });
+  const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  useEffect(() => {
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(endDate.getDate() - 7);
+  const fetchDashboard = () => {
+    setLoading(true);
+    const start = new Date(startDate + 'T00:00:00');
+    const end = new Date(endDate + 'T23:59:59');
 
-    // Fetch KPIs separately (usually fastest)
     axios.get('/api/dashboard')
       .then(res => setKpis(res.data))
       .catch(console.error);
 
-    // Fetch Recent Transactions
     axios.get('/api/dashboard/recent-transactions')
       .then(res => setTransactions(res.data.transactions || []))
       .catch(console.error);
 
-    // Fetch Low Stock
     axios.get('/api/dashboard/low-stock')
       .then(res => setLowStock(res.data.products || []))
       .catch(console.error);
 
-    // Fetch Profit Data (usually heaviest)
-    axios.get(`/api/profit?start=${startDate.toISOString()}&end=${endDate.toISOString()}`)
+    axios.get(`/api/profit?start=${start.toISOString()}&end=${end.toISOString()}`)
       .then(res => setProfitData(res.data.groupedData || []))
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(() => {
+    fetchDashboard();
+  }, [startDate, endDate]);
 
   // Chart options
   const { theme } = useTheme();
@@ -106,10 +112,24 @@ export function JiraDashboard() {
           <h1 className="text-sm md:text-base font-bold text-[#172B4D] dark:text-white">Dashboard</h1>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#F4F5F7] dark:bg-[#1D2125] rounded text-[11px] font-bold text-[#626F86] dark:text-[#8C9BAB]">
-            <Calendar className="w-3.5 h-3.5" />
-            7 Hari Terakhir
-          </div>
+          <div className="flex items-center gap-1.5 bg-white dark:bg-[#1D2125] border border-[#DFE1E6] dark:border-[#2C333A] rounded-md px-2.5 h-8">
+          <Calendar className="w-3 h-3 text-[#626F86] shrink-0" />
+          <input
+            type="date"
+            value={startDate}
+            max={endDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="bg-transparent border-none outline-none text-[10px] text-[#172B4D] dark:text-[#B6C2CF] w-[90px] cursor-pointer"
+          />
+          <span className="text-[#626F86] text-[10px]">-</span>
+          <input
+            type="date"
+            value={endDate}
+            min={startDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="bg-transparent border-none outline-none text-[10px] text-[#172B4D] dark:text-[#B6C2CF] w-[90px] cursor-pointer"
+          />
+        </div>
           <Link href="/orders">
             <Button size="sm" className="bg-[#0052CC] hover:bg-[#0747A6] text-white gap-2 font-bold px-4 shadow-sm">
               <Plus className="w-4 h-4" />

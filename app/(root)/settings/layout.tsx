@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation';
 import { Settings, Printer, Store, Users, Building2 } from 'lucide-react';
 
 const settingsNav = [
-  { name: 'Umum', href: '/settings', icon: Settings, exact: true },
   { name: 'Hardware', href: '/settings/hardware', icon: Printer },
   { name: 'Kategori Barang', href: '/settings/category', icon: Store },
   { name: 'Info Toko', href: '/settings/store', icon: Building2, disabled: true },

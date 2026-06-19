@@ -19,23 +19,20 @@ export async function GET(req: NextRequest) {
       take: 5,
     });
 
-    // Get detailed information for each top product
-    const productDetails = await Promise.all(
-      topProducts.map(async (product) => {
-        const productDetail = await prisma.product.findUnique({
-          where: {
-            productId: product.productId,
-          },
-          include: {
-            productstock: true,
-          },
-        });
-        return {
-          ...productDetail,
-          _sum: product._sum,
-        };
-      })
-    );
+    // Get detailed information for each top product using a single query to prevent pool exhaustion
+    const productIds = topProducts.map((p) => p.productId);
+    const products = await prisma.product.findMany({
+      where: { productId: { in: productIds } },
+      include: { productstock: true },
+    });
+
+    const productDetails = topProducts.map((product) => {
+      const productDetail = products.find((p) => p.productId === product.productId);
+      return {
+        ...productDetail,
+        _sum: product._sum,
+      };
+    });
 
     // Return the top products with their details as a JSON response with a 200 status code
     return NextResponse.json({ topProducts: productDetails }, { status: 200 });

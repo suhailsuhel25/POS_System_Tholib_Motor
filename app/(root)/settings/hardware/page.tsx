@@ -82,12 +82,6 @@ export default function HardwareSettingPage() {
       status: 'connected',
       lastConnected: 'Otomatis',
     },
-    {
-      name: 'Cash Drawer',
-      type: 'Bluetooth (via Printer)',
-      status: connectedDevice ? 'connected' : 'disconnected',
-      lastConnected: connectedDevice ? 'Sekarang' : '-',
-    },
   ];
 
   return (
@@ -95,7 +89,7 @@ export default function HardwareSettingPage() {
       <div className="mb-6">
         <h2 className="text-lg font-bold text-[#172B4D] dark:text-white mb-1">Perangkat Hardware</h2>
         <p className="text-sm text-[#626F86] dark:text-[#8C9BAB]">
-          Kelola koneksi ke printer thermal, scanner barcode, dan cash drawer.
+          Kelola koneksi ke printer thermal dan scanner barcode.
         </p>
       </div>
 

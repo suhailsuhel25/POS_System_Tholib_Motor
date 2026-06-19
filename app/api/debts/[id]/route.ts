@@ -42,6 +42,19 @@ export const PATCH = async (
       },
     });
 
+    // Sync transaction status with debt status
+    if (isPaid) {
+      await prisma.transaction.update({
+        where: { id: existingDebt.transactionId },
+        data: { status: 'SUKSES' },
+      });
+    } else {
+      await prisma.transaction.update({
+        where: { id: existingDebt.transactionId },
+        data: { status: 'HUTANG' },
+      });
+    }
+
     return NextResponse.json({
       ...debt,
       amount: Number(debt.amount),
