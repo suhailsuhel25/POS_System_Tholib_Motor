@@ -58,6 +58,14 @@ export class BluetoothPrinterService {
     await BluetoothSerial.write({ address, value: data });
   }
 
+  static async printRawData(address: string, base64: string): Promise<void> {
+    if (!this.isNative()) {
+      console.log('Simulasi Print Raw (Web Mode) [Base64 length]:', base64.length);
+      return;
+    }
+    await (BluetoothSerial as any).writeRaw({ address, base64 });
+  }
+
   static async printTestPage(address: string): Promise<void> {
     const ESC = '\x1b';
     const GS = '\x1d';

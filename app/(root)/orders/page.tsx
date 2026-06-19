@@ -3,9 +3,10 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import axios from '@/lib/axios';
 import { Plus, Minus, Trash2, CreditCard, ShoppingBag, Search, X, ChevronDown, Store, Receipt, Barcode } from 'lucide-react';
+import { toast } from 'react-toastify';
 import { Button } from '@/components/ui/button';
 import { BluetoothPrinterService } from '@/lib/services/bluetooth-printer';
-import { buildReceipt } from '@/lib/services/receipt-builder';
+import { buildReceiptBase64 } from '@/lib/services/receipt-builder';
 import { ErrorAlert } from '@/components/ErrorAlert';
 import { SuccessAlert } from '@/components/SuccessAlert';
 import { ReceiptDialog } from '@/components/ReceiptDialog';
@@ -30,6 +31,7 @@ interface Product {
 interface CartItem {
   id: string;
   name: string;
+  brand?: string;
   price: number;
   quantity: number;
 }
@@ -153,20 +155,42 @@ export default function KasirPage() {
         setReceiptData({ id: response.data.id, items: cart, total, paymentAmount, changeAmount, discountAmount, subtotal });
         setReceiptDialogOpen(true);
         try {
-          const mac = localStorage.getItem('printer_mac');
-          if (mac) {
-            const isEnabled = await BluetoothPrinterService.checkStatus();
-            if (isEnabled) {
-              const dataToPrint = buildReceipt({
-                storeName: 'Tholib Motor', storeAddress: 'Jl. Kebon Jeruk No. 12, Jakarta Barat',
-                storePhone: '0812-3456-7890', cashierName: 'Admin', transactionId: response.data.id,
-                items: cart.map(i => ({ name: i.name, qty: i.quantity, price: i.price })),
-                total, paymentAmount, changeAmount, footerMessage: 'Barang yang sudah dibeli tidak dapat ditukar atau dikembalikan.'
-              });
-              await BluetoothPrinterService.printData(mac, dataToPrint);
+          if (!BluetoothPrinterService.isNative()) {
+            toast.warning('Pembayaran sukses! Fitur cetak struk via bluetooth hanya tersedia di Android.');
+          } else {
+            const mac = localStorage.getItem('printer_mac');
+            if (mac) {
+              const isEnabled = await BluetoothPrinterService.checkStatus();
+              if (isEnabled) {
+                const dataToPrint = await buildReceiptBase64({
+                  storeName: 'Tholib Motor',
+                  storeSubtitle: 'Bengkel Sepeda Motor',
+                  storeAddress: 'Jl. Tebu No.20, RT.13/RW.7, Cakung Bar., Kec. Cakung, Kota Jakarta Timur 13910',
+                  storePhone: '0821-1247-8537',
+                  cashierName: 'Administrator',
+                  transactionId: response.data.id,
+                  createdAt: new Date(response.data.createdAt || new Date()),
+                  items: cart.map(i => ({ name: i.name, brand: i.brand, qty: i.quantity, price: i.price })),
+                  total,
+                  paymentAmount,
+                  changeAmount: paymentAmount - total,
+                  discountAmount,
+                  footerMessage: 'Barang yang sudah dibeli tidak dapat ditukar atau dikembalikan.',
+                  appUrl: 'http://192.168.5.23:3000'
+                });
+                await BluetoothPrinterService.printRawData(mac, dataToPrint);
+                toast.success('Struk berhasil dicetak!');
+              } else {
+                toast.error('Gagal mencetak: Bluetooth tidak aktif');
+              }
+            } else {
+              toast.error('Gagal mencetak: Printer belum diatur di menu Pengaturan Hardware');
             }
           }
-        } catch (e) { console.error('Failed to print receipt', e); }
+        } catch (e: any) {
+          console.error('Failed to print receipt', e);
+          toast.error(`Gagal mencetak struk: ${e.message || 'Koneksi ke printer gagal'}`);
+        }
       }
     } catch (error: any) {
       const errorMsg = error.response?.data?.error || 'Gagal memproses pembayaran';
@@ -273,7 +297,7 @@ export default function KasirPage() {
         {/* CART PANEL - Desktop + Landscape: side panel, Portrait mobile: overlay */}
         <div className={`bg-white dark:bg-[#22272B] border-l border-[#DFE1E6] dark:border-[#2C333A] min-w-0 ${
           showCart
-            ? 'flex w-full md:w-[360px] flex-col'
+            ? 'flex w-full md:w-[360px] landscape:w-[40%] landscape:max-w-[340px] flex-col'
             : 'hidden lg:flex w-[360px] xl:w-[400px] flex-col'
         }`}>
           <CartPanel
@@ -286,6 +310,9 @@ export default function KasirPage() {
             processingPayment={processingPayment} isHutang={isHutang}
             processPayment={processPayment} setShowHutangModal={setShowHutangModal}
             onClose={() => setShowCart(false)}
+            isMobile={true}
+            barcodeRef={barcodeRef}
+            addToCart={addToCart}
           />
         </div>
       </div>

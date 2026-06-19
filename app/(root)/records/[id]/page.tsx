@@ -19,8 +19,11 @@ import axios from '@/lib/axios';
 import { useEffect, useRef, useState } from 'react';
 import { useReactToPrint } from 'react-to-print';
 import { useRouter } from 'next/navigation';
+import { toast } from 'react-toastify';
 
 import { ReceiptContent } from '@/components/ReceiptContent';
+import { BluetoothPrinterService } from '@/lib/services/bluetooth-printer';
+import { buildReceiptBase64 } from '@/lib/services/receipt-builder';
 
 const statusConfig: Record<string, { label: string; color: string; bg: string; icon: any }> = {
   COMPLETED: { label: 'Selesai', color: 'text-[#00875A]', bg: 'bg-[#E3FCEF]', icon: CheckCircle2 },
@@ -39,12 +42,57 @@ export default function DetailPage({ params }: { params: { id: string } }) {
   const route = useRouter();
   const componentRef = useRef<HTMLDivElement>(null);
 
-  const handlePrint = useReactToPrint({
-    content: () => componentRef.current,
-    documentTitle: `Receipt-${params.id}`,
-    onBeforeGetContent: () => setPrinting(true),
-    onAfterPrint: () => setPrinting(false),
-  });
+  const handlePrintClick = async () => {
+    if (!BluetoothPrinterService.isNative()) {
+      toast.warning('Fitur cetak struk langsung hanya tersedia di Aplikasi Kasir Android.');
+      return;
+    }
+
+    const mac = localStorage.getItem('printer_mac');
+    if (!mac) {
+      toast.error('Printer belum diatur! Silakan atur printer di menu Settings > Hardware.');
+      return;
+    }
+
+    try {
+      setPrinting(true);
+      const isEnabled = await BluetoothPrinterService.checkStatus();
+      if (!isEnabled) {
+        toast.error('Bluetooth tidak aktif! Harap nyalakan Bluetooth di HP Anda.');
+        return;
+      }
+
+      const dataToPrint = await buildReceiptBase64({
+        storeName: 'Tholib Motor',
+        storeSubtitle: 'Bengkel Sepeda Motor',
+        storeAddress: 'Jl. Tebu No.20, RT.13/RW.7, Cakung Bar., Kec. Cakung, Kota Jakarta Timur 13910',
+        storePhone: '0821-1247-8537',
+        cashierName: 'Administrator',
+        transactionId: transaction.id,
+        createdAt: new Date(transaction.createdAt || new Date()),
+        items: items.map((item: any) => ({ 
+          name: item.product?.productstock?.name || 'Produk Tidak Diketahui', 
+          brand: item.product?.productstock?.brand,
+          qty: item.quantity, 
+          price: Number(item.product?.sellprice || 0) 
+        })),
+        total: Number(transaction.totalAmount || 0),
+        paymentAmount: Number(transaction.paymentAmount || 0),
+        changeAmount: Number(transaction.changeAmount || 0),
+        discountAmount: Number(transaction.discountAmount || 0),
+        footerMessage: 'Barang yang sudah dibeli tidak dapat ditukar atau dikembalikan.',
+        appUrl: 'http://192.168.5.23:3000'
+      });
+      
+      await BluetoothPrinterService.printRawData(mac, dataToPrint);
+      toast.success('Struk berhasil dicetak!');
+    } catch (e: any) {
+      console.error(e);
+      toast.error(`Gagal mencetak: ${e.message || 'Koneksi ke printer terputus'}`);
+    } finally {
+      setPrinting(false);
+    }
+  };
 
   useEffect(() => {
     const fetchTransaction = async () => {
@@ -160,7 +208,7 @@ export default function DetailPage({ params }: { params: { id: string } }) {
             <Button
               size="sm"
               className="bg-[#0052CC] hover:bg-[#0747A6] text-white gap-2"
-              onClick={handlePrint}
+              onClick={handlePrintClick}
               disabled={printing}
             >
               <Printer className="w-4 h-4" />

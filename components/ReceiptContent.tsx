@@ -39,9 +39,10 @@ export const ReceiptContent = forwardRef<HTMLDivElement, ReceiptContentProps>(({
                             Tholib Motor
                         </h2>
                         <p className="text-[9px] text-[#626F86] dark:text-[#8C9BAB] leading-tight">
-                            Spesialis Suku Cadang Motor<br />
-                            Honda, Yamaha, Suzuki, Kawasaki<br />
-                            Jl. Kebon Jeruk No. 12, Jakarta Barat
+                            Bengkel Sepeda Motor<br />
+                            Jl. Tebu No.20, RT.13/RW.7, Cakung Bar.,<br />
+                            Kec. Cakung, Kota Jakarta Timur 13910<br />
+                            Telp: 0821-1247-8537
                         </p>
                     </div>
                 </CardHeader>

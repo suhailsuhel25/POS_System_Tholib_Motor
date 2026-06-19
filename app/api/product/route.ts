@@ -166,7 +166,7 @@ export const POST = async (request: Request) => {
         category: data.category || '',
         masterCategory: data.masterCategory || '',
         skuManual: data.skuManual || `${data.brand.slice(0, 3)}-${customId}`,
-        barcode: data.barcode || null,
+        barcode: data.barcode ? data.barcode.toUpperCase() : null,
         buyPrice: data.buyPrice || 0,
         sellPrice: data.sellPrice || 0,
         stock: data.stock || 0,

@@ -48,40 +48,40 @@ export function JiraDashboard() {
     d.setDate(d.getDate() - 7);
     return d.toISOString().split('T')[0];
   });
+
   const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const fetchDashboard = () => {
+  const fetchDashboard = async () => {
     setLoading(true);
     const start = new Date(startDate + 'T00:00:00');
     const end = new Date(endDate + 'T23:59:59');
 
-    axios.get('/api/dashboard')
-      .then(res => setKpis(res.data))
-      .catch(console.error);
+    try {
+      const results = await Promise.allSettled([
+        axios.get('/api/dashboard'),
+        axios.get('/api/dashboard/recent-transactions'),
+        axios.get('/api/dashboard/low-stock'),
+        axios.get(`/api/profit?start=${start.toISOString()}&end=${end.toISOString()}`)
+      ]);
 
-    axios.get('/api/dashboard/recent-transactions')
-      .then(res => setTransactions(res.data.transactions || []))
-      .catch(console.error);
-
-    axios.get('/api/dashboard/low-stock')
-      .then(res => setLowStock(res.data.products || []))
-      .catch(console.error);
-
-    axios.get(`/api/profit?start=${start.toISOString()}&end=${end.toISOString()}`)
-      .then(res => setProfitData(res.data.groupedData || []))
-      .catch(console.error)
-      .finally(() => setLoading(false));
+      if (results[0].status === 'fulfilled') setKpis(results[0].value.data);
+      if (results[1].status === 'fulfilled') setTransactions(results[1].value.data.transactions || []);
+      if (results[2].status === 'fulfilled') setLowStock(results[2].value.data.products || []);
+      if (results[3].status === 'fulfilled') setProfitData(results[3].value.data.groupedData || []);
+    } catch (err) {
+      console.error('Dashboard fetch error:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     fetchDashboard();
   }, [startDate, endDate]);
-
-  // Chart options
   const { theme } = useTheme();
   const chartOptions: ApexCharts.ApexOptions = {
     chart: { type: 'area', toolbar: { show: false }, sparkline: { enabled: false }, fontFamily: 'inherit', animations: { enabled: false } },

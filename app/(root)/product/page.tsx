@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import axios from '@/lib/axios';
 import { Search, Filter, Plus, MoreHorizontal, AlertTriangle, ChevronDown, X, Trash2, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -55,6 +55,9 @@ export default function ProductList() {
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const ignoreBrandChangeClearRef = useRef<boolean>(false);
 
   // Alert states
   const [successAlert, setSuccessAlert] = useState({ open: false, title: '', message: '' });
@@ -131,18 +134,20 @@ export default function ProductList() {
     }
   }, [activeBrand, searchQuery, selectedMasterCategory, offset]);
 
-  // Initial fetch & Search debounce
+  // Initial fetch & Search trigger
   useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchProducts(true);
-    }, 500);
-    return () => clearTimeout(timer);
+    fetchProducts(true);
   }, [searchQuery, selectedMasterCategory]);
 
   // Fetch when brand changes
   useEffect(() => {
-    setSelectedMasterCategory('');
-    setSearchQuery('');
+    if (ignoreBrandChangeClearRef.current) {
+      ignoreBrandChangeClearRef.current = false;
+    } else {
+      setSelectedMasterCategory('');
+      setSearchQuery('');
+      if (searchRef.current) searchRef.current.value = '';
+    }
     fetchProducts(true);
   }, [activeBrand]);
 
@@ -257,15 +262,53 @@ export default function ProductList() {
             <div className="relative w-full md:w-80">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#626F86] dark:text-[#8C9BAB]" />
               <input
+                ref={searchRef}
                 type="text"
-                placeholder="Cari nama produk..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Cari nama atau scan barcode..."
+                defaultValue={searchQuery}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+                  searchTimeoutRef.current = setTimeout(() => {
+                    setSearchQuery(val);
+                  }, 500);
+                }}
+                onKeyDown={async (e) => {
+                  if (e.key === 'Enter') {
+                    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+                    const val = (e.target as HTMLInputElement).value.trim();
+                    setSearchQuery(val);
+                    if (val) {
+                      try {
+                        // Global search
+                        const res = await axios.get(`/api/product?search=${encodeURIComponent(val)}&limit=1`);
+                        if (res.data.products && res.data.products.length > 0) {
+                          const foundBrand = res.data.products[0].brand;
+                          if (foundBrand !== activeBrand) {
+                            ignoreBrandChangeClearRef.current = true;
+                            setActiveBrand(foundBrand);
+                          } else {
+                            fetchProducts(true);
+                          }
+                        } else {
+                          fetchProducts(true);
+                        }
+                      } catch {
+                        fetchProducts(true);
+                      }
+                    } else {
+                      fetchProducts(true);
+                    }
+                  }
+                }}
                 className="w-full h-11 pl-10 pr-10 rounded-md border border-[#DFE1E6] dark:border-[#2C333A] bg-white dark:bg-[#1D2125] text-base placeholder:text-[#626F86] dark:placeholder:text-[#8C9BAB] focus:outline-none focus:ring-2 focus:ring-[#0052CC] transition-all"
               />
-              {searchQuery && (
+              {(searchQuery || searchRef.current?.value) && (
                 <button
-                  onClick={() => setSearchQuery('')}
+                  onClick={() => {
+                    setSearchQuery('');
+                    if (searchRef.current) searchRef.current.value = '';
+                  }}
                   className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-[#EBECF0] dark:hover:bg-[#2C333A] rounded"
                 >
                   <X className="w-4 h-4 text-[#626F86]" />

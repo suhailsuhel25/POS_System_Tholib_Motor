@@ -29,7 +29,7 @@ export const PATCH = async (
       sellPrice: parsed.data.sellPrice,
       masterCategory: parsed.data.masterCategory,
       category: parsed.data.category,
-      barcode: parsed.data.barcode !== undefined ? parsed.data.barcode : undefined,
+      barcode: parsed.data.barcode !== undefined ? (parsed.data.barcode ? parsed.data.barcode.toUpperCase() : null) : undefined,
     };
 
     if (parsed.data.sellPrice !== undefined) {

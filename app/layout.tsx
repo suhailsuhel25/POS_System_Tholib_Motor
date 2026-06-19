@@ -39,6 +39,7 @@ export default function RootLayout({
       <head>
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body className={inter.className}>
         <ThemeProvider
