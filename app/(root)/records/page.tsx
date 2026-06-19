@@ -131,10 +131,123 @@ export default function RecordsPage() {
   // Export to CSV
   const handleExport = () => {
     if (transactions.length === 0) return;
-    const headers = ['ID Transaksi', 'Tanggal', 'Items', 'Total Amount'];
-    const rows = transactions.map(t => [t.id, format(new Date(t.createdAt), 'yyyy-MM-dd HH:mm'), t.products?.length || 0, t.totalAmount]);
+
+    // CSV Header sesuai standar POS
+    const headers = [
+      'No',
+      'ID Transaksi',
+      'Tanggal',
+      'Waktu',
+      'Status',
+      'Nama Produk',
+      'Brand',
+      'Kategori',
+      'Qty',
+      'Harga Satuan',
+      'Subtotal Item',
+      'Subtotal Transaksi',
+      'Diskon',
+      'Total Bayar',
+      'Dibayar',
+      'Kembalian',
+      'Metode Bayar',
+      'Keterangan'
+    ];
+
+    const rows: any[][] = [];
+    let rowNumber = 0;
+
+    // Sort by date descending
+    const sortedTransactions = [...transactions].sort((a, b) =>
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+
+    sortedTransactions.forEach((t) => {
+      const date = format(new Date(t.createdAt), 'yyyy-MM-dd');
+      const time = format(new Date(t.createdAt), 'HH:mm:ss');
+      const status = t.status === 'SUKSES' ? 'Lunas' : t.status === 'HUTANG' ? 'Hutang' : 'Retur';
+      const totalAmount = Number(t.totalAmount || 0);
+      const discount = Number(t.discountAmount || 0);
+      const paymentAmount = Number(t.paymentAmount || 0);
+      const changeAmount = Number(t.changeAmount || 0);
+      const metodeBayar = t.status === 'HUTANG' ? 'Hutang' : 'Tunai';
+      const keterangan = t.status === 'HUTANG' ? (t.debt?.customerName || '-') : '-';
+
+      if (t.products && t.products.length > 0) {
+        t.products.forEach((p: any) => {
+          rowNumber++;
+          const productName = p.product?.productstock?.name || '-';
+          const brand = p.product?.productstock?.brand || '-';
+          const category = p.product?.productstock?.category || p.product?.productstock?.masterCategory || '-';
+          const qty = p.quantity || 0;
+          const hargaSatuan = Number(p.product?.sellprice || 0);
+          const subtotalItem = qty * hargaSatuan;
+
+          rows.push([
+            rowNumber,
+            t.id,
+            date,
+            time,
+            status,
+            `"${productName}"`,
+            brand,
+            `"${category}"`,
+            qty,
+            hargaSatuan,
+            subtotalItem,
+            totalAmount,
+            discount,
+            totalAmount,
+            paymentAmount,
+            changeAmount,
+            metodeBayar,
+            `"${keterangan}"`
+          ]);
+        });
+      } else {
+        rowNumber++;
+        rows.push([
+          rowNumber,
+          t.id,
+          date,
+          time,
+          status,
+          '-',
+          '-',
+          '-',
+          0,
+          0,
+          0,
+          totalAmount,
+          discount,
+          totalAmount,
+          paymentAmount,
+          changeAmount,
+          metodeBayar,
+          `"${keterangan}"`
+        ]);
+      }
+    });
+
+    // Add summary at the end
+    const totalRevenue = sortedTransactions
+      .filter(t => t.status !== 'RETUR')
+      .reduce((sum, t) => sum + Number(t.totalAmount || 0), 0);
+    const totalDiscount = sortedTransactions.reduce((sum, t) => sum + Number(t.discountAmount || 0), 0);
+    const totalPaid = sortedTransactions.reduce((sum, t) => sum + Number(t.paymentAmount || 0), 0);
+    const totalHutang = sortedTransactions
+      .filter(t => t.status === 'HUTANG')
+      .reduce((sum, t) => sum + (Number(t.totalAmount || 0) - Number(t.paymentAmount || 0)), 0);
+
+    rows.push([]);
+    rows.push(['', '', '', '', '', '', '', '', '', '', '', 'TOTAL OMSET', totalRevenue, '', '', '', '', '']);
+    rows.push(['', '', '', '', '', '', '', '', '', '', '', 'TOTAL DISKON', totalDiscount, '', '', '', '', '']);
+    rows.push(['', '', '', '', '', '', '', '', '', '', '', 'TOTAL DIBAYAR', '', totalPaid, '', '', '', '']);
+    rows.push(['', '', '', '', '', '', '', '', '', '', '', 'TOTAL HUTANG', '', '', '', '', '', totalHutang]);
+    rows.push(['', '', '', '', '', '', '', '', '', '', '', 'TOTAL TRANSAKSI', sortedTransactions.length, '', '', '', '', '']);
+
     const csvContent = [headers, ...rows].map(e => e.join(',')).join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = `Laporan_Penjualan_${startDate}_${endDate}.csv`;
