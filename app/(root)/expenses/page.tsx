@@ -32,7 +32,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Search, Plus, Trash2, DollarSign, MoreHorizontal, X } from 'lucide-react';
+import { Search, Plus, Trash2, DollarSign, MoreHorizontal, X, Download } from 'lucide-react';
 
 interface Expense {
   id: string;
@@ -115,6 +115,50 @@ export default function ExpensesPage() {
     }
   };
 
+  const handleExportCSV = () => {
+    if (expenses.length === 0) return;
+
+    const headers = ['No', 'Tanggal', 'Waktu', 'Deskripsi', 'Kategori', 'Jumlah (Rp)', 'Catatan'];
+    const rows: any[][] = [];
+    let rowNumber = 0;
+
+    const categoryTotals: Record<string, number> = {};
+
+    expenses.forEach((e) => {
+      rowNumber++;
+      const date = format(new Date(e.createdAt), 'yyyy-MM-dd');
+      const time = format(new Date(e.createdAt), 'HH:mm:ss');
+      const catLabel = categoryLabels[e.category] || e.category;
+
+      rows.push([
+        rowNumber,
+        date,
+        time,
+        `"${e.description}"`,
+        catLabel,
+        e.amount,
+        `"${e.notes || '-'}"`
+      ]);
+
+      categoryTotals[e.category] = (categoryTotals[e.category] || 0) + e.amount;
+    });
+
+    const totalAll = Object.values(categoryTotals).reduce((s, v) => s + v, 0);
+
+    rows.push([]);
+    rows.push(['', '', '', '', 'TOTAL', totalAll, '']);
+    Object.entries(categoryTotals).forEach(([cat, amt]) => {
+      rows.push(['', '', '', '', `Total ${categoryLabels[cat] || cat}`, amt, '']);
+    });
+
+    const csvContent = [headers, ...rows].map(e => e.join(',')).join('\n');
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `Laporan_Pengeluaran_${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    link.click();
+  };
+
   const filteredExpenses = expenses.filter((e) =>
     e.description.toLowerCase().includes(search.toLowerCase())
   );
@@ -127,10 +171,16 @@ export default function ExpensesPage() {
           <DollarSign className="w-5 h-5 text-[#0052CC] dark:text-[#579DFF]" />
           <h1 className="text-base font-bold text-[#172B4D] dark:text-white">Pengeluaran</h1>
         </div>
-        <Button onClick={() => setDialogOpen(true)} className="gap-2 font-medium bg-[#0052CC] hover:bg-[#0747A6] text-white">
-          <Plus className="w-5 h-5" />
-          Tambah Pengeluaran
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={handleExportCSV} disabled={loading || expenses.length === 0} className="gap-2 border-[#DFE1E6] dark:border-[#2C333A] h-9">
+            <Download className="w-4 h-4 text-[#626F86]" />
+            <span className="text-xs">Ekspor CSV</span>
+          </Button>
+          <Button onClick={() => setDialogOpen(true)} className="gap-2 font-medium bg-[#0052CC] hover:bg-[#0747A6] text-white h-9">
+            <Plus className="w-4 h-4" />
+            <span className="text-xs">Tambah</span>
+          </Button>
+        </div>
       </div>
 
       <div className="flex-1 flex flex-col p-6 space-y-5 overflow-y-auto">
