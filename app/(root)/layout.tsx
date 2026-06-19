@@ -15,6 +15,10 @@ import {
   Settings,
   ChevronsLeft,
   ChevronsRight,
+  ChevronDown,
+  ChevronRight,
+  Receipt,
+  DollarSign,
 } from 'lucide-react';
 
 interface RootLayoutProps {
@@ -26,7 +30,13 @@ const navItems = [
   { name: 'Kasir', href: '/orders', icon: CreditCard },
   { name: 'Stok Barang', href: '/product', icon: Package },
   { name: 'Riwayat', href: '/records', icon: BarChart3 },
-  { name: 'Pengaturan', href: '/settings', icon: Settings },
+  { name: 'Hutang', href: '/debts', icon: Receipt },
+  { name: 'Pengeluaran', href: '/expenses', icon: DollarSign },
+  { 
+    name: 'Pengaturan', 
+    href: '/settings', 
+    icon: Settings
+  },
 ];
 
 export default function RootLayout({ children }: RootLayoutProps) {
@@ -83,40 +93,74 @@ export default function RootLayout({ children }: RootLayoutProps) {
         </div>
 
         {/* MIDDLE - Navigation */}
-        <nav className="flex-1 py-4 px-3 space-y-1.5 overflow-y-auto">
+        <nav className={`flex-1 py-4 space-y-1.5 overflow-y-auto ${collapsed ? 'px-2' : 'px-3'}`}>
           {navItems.map((item) => {
-            const isActive = pathname === item.href || (item.href === '/home' && pathname === '/');
+            const isExactActive = pathname === item.href || (item.href === '/home' && pathname === '/');
+            const isPathActive = pathname.startsWith(item.href);
+            const hasSub = item.subItems && item.subItems.length > 0;
             const Icon = item.icon;
+            
             return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={`
-                  flex items-center gap-3 px-4 py-3 rounded-md text-base font-medium transition-all
-                  ${collapsed ? 'justify-center' : ''}
-                  ${isActive
-                    ? 'bg-[#0052CC] text-white dark:bg-[#0C66E4]'
-                    : 'text-[#44546F] dark:text-[#9FADBC] hover:bg-[#EBECF0] dark:hover:bg-[#2C333A] hover:text-[#172B4D] dark:hover:text-white'
-                  }
-                `}
-                title={collapsed ? item.name : undefined}
-              >
-                <Icon className="w-6 h-6 shrink-0" />
-                {!collapsed && <span>{item.name}</span>}
-              </Link>
+              <div key={item.name} className="flex flex-col">
+                <Link
+                  href={item.href}
+                  className={`
+                    flex items-center gap-3 rounded-md text-base font-medium transition-all
+                    ${collapsed ? 'justify-center px-0 py-3' : 'justify-between px-4 py-3'}
+                    ${isExactActive
+                      ? 'bg-[#0052CC] text-white dark:bg-[#0C66E4]'
+                      : isPathActive
+                        ? 'bg-[#DEEBFF] text-[#0052CC] dark:bg-[#0747A6]/30 dark:text-[#579DFF]'
+                        : 'text-[#44546F] dark:text-[#9FADBC] hover:bg-[#EBECF0] dark:hover:bg-[#2C333A] hover:text-[#172B4D] dark:hover:text-white'
+                    }
+                  `}
+                  title={collapsed ? item.name : undefined}
+                >
+                  <div className="flex items-center gap-3">
+                    <Icon className="w-6 h-6 shrink-0" />
+                    {!collapsed && <span>{item.name}</span>}
+                  </div>
+                  {hasSub && !collapsed && (
+                    <ChevronRight className={`w-4 h-4 transition-transform ${isPathActive ? 'rotate-90' : ''}`} />
+                  )}
+                </Link>
+
+                {/* Sub Items */}
+                {hasSub && !collapsed && isPathActive && (
+                  <div className="flex flex-col mt-1.5 ml-11 space-y-1">
+                    {item.subItems!.map((sub) => {
+                      const isSubActive = pathname === sub.href;
+                      return (
+                        <Link
+                          key={sub.name}
+                          href={sub.href}
+                          className={`
+                            px-3 py-2.5 rounded-md text-sm font-medium transition-all
+                            ${isSubActive 
+                              ? 'bg-[#0052CC] text-white dark:bg-[#0C66E4]' 
+                              : 'text-[#626F86] dark:text-[#8C9BAB] hover:bg-[#EBECF0] dark:hover:bg-[#2C333A] hover:text-[#172B4D] dark:hover:text-white'}
+                          `}
+                        >
+                          {sub.name}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             );
           })}
         </nav>
 
         {/* BOTTOM - Theme & Settings */}
-        <div className="border-t border-[#DFE1E6] dark:border-[#2C333A] py-4 px-3 space-y-1.5">
+        <div className={`border-t border-[#DFE1E6] dark:border-[#2C333A] py-4 space-y-1.5 ${collapsed ? 'px-2' : 'px-3'}`}>
           {/* Theme Toggle */}
           <button
             onClick={toggleTheme}
             className={`
-              w-full flex items-center gap-3 px-4 py-3 rounded-md text-base font-medium transition-all
+              w-full flex items-center gap-3 rounded-md text-base font-medium transition-all
+              ${collapsed ? 'justify-center px-0 py-3' : 'justify-start px-4 py-3'}
               text-[#44546F] dark:text-[#9FADBC] hover:bg-[#EBECF0] dark:hover:bg-[#2C333A] hover:text-[#172B4D] dark:hover:text-white
-              ${collapsed ? 'justify-center' : ''}
             `}
             title={collapsed ? (mounted && theme === 'dark' ? 'Mode Terang' : 'Mode Gelap') : undefined}
           >

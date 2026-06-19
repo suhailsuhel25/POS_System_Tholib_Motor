@@ -18,6 +18,7 @@ interface ReceiptContentProps {
         total: number;
         paymentAmount: number;
         changeAmount: number;
+        discountAmount?: number;
         status?: string;
     };
 }
@@ -83,10 +84,27 @@ export const ReceiptContent = forwardRef<HTMLDivElement, ReceiptContentProps>(({
                     </div>
 
                     <div className="pt-3 border-t border-dashed border-[#DFE1E6] dark:border-[#2C333A] space-y-1.5">
-                        <div className="flex justify-between items-center text-xs">
-                            <span className="text-[#626F86] dark:text-[#8C9BAB] font-medium">Total</span>
-                            <span className="font-black text-[#172B4D] dark:text-white">Rp{transaction.total.toLocaleString('id-ID')}</span>
-                        </div>
+                        {transaction.discountAmount && transaction.discountAmount > 0 ? (
+                            <>
+                                <div className="flex justify-between items-center text-xs">
+                                    <span className="text-[#626F86] dark:text-[#8C9BAB] font-medium">Subtotal</span>
+                                    <span className="text-[#172B4D] dark:text-white">Rp{(transaction.total + transaction.discountAmount).toLocaleString('id-ID')}</span>
+                                </div>
+                                <div className="flex justify-between items-center text-xs text-[#DE350B]">
+                                    <span className="font-medium">Diskon</span>
+                                    <span className="font-black">-Rp{transaction.discountAmount.toLocaleString('id-ID')}</span>
+                                </div>
+                                <div className="flex justify-between items-center text-xs">
+                                    <span className="text-[#626F86] dark:text-[#8C9BAB] font-medium">Total</span>
+                                    <span className="font-black text-[#172B4D] dark:text-white">Rp{transaction.total.toLocaleString('id-ID')}</span>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="flex justify-between items-center text-xs">
+                                <span className="text-[#626F86] dark:text-[#8C9BAB] font-medium">Total</span>
+                                <span className="font-black text-[#172B4D] dark:text-white">Rp{transaction.total.toLocaleString('id-ID')}</span>
+                            </div>
+                        )}
                         <div className="flex justify-between items-center text-[11px]">
                             <span className="text-[#626F86] dark:text-[#8C9BAB]">Bayar</span>
                             <span className="text-[#172B4D] dark:text-white font-medium">Rp{transaction.paymentAmount.toLocaleString('id-ID')}</span>

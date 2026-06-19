@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
-import axios from 'axios';
+import axios from '@/lib/axios';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { formatDistanceToNow, format } from 'date-fns';
 import { id } from 'date-fns/locale';
+import { useTheme } from 'next-themes';
 import { AlertTriangle, TrendingUp, ShoppingCart, Package, Banknote, Clock, ChevronRight, Plus, LayoutDashboard, Calendar, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -75,8 +76,9 @@ export function JiraDashboard() {
   }, []);
 
   // Chart options
+  const { theme } = useTheme();
   const chartOptions: ApexCharts.ApexOptions = {
-    chart: { type: 'area', toolbar: { show: false }, sparkline: { enabled: false }, fontFamily: 'inherit' },
+    chart: { type: 'area', toolbar: { show: false }, sparkline: { enabled: false }, fontFamily: 'inherit', animations: { enabled: false } },
     colors: ['#0052CC'],
     fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.3, opacityTo: 0.05, stops: [0, 90, 100] } },
     dataLabels: { enabled: false },
@@ -89,10 +91,10 @@ export function JiraDashboard() {
     },
     yaxis: { labels: { show: false } },
     grid: { show: false },
-    tooltip: { theme: 'light', y: { formatter: (v) => `Rp${v.toLocaleString('id-ID')}` } }
+    tooltip: { theme: theme === 'dark' ? 'dark' : 'light', y: { formatter: (v) => `Rp${v.toLocaleString('id-ID')}` } }
   };
 
-  const chartSeries = [{ name: 'Penjualan', data: profitData.map(d => d.grossIncome) }];
+  const chartSeries = [{ name: 'Penjualan', data: profitData.map(d => Number(d.revenue || 0)) }];
 
 
   return (
@@ -176,7 +178,15 @@ export function JiraDashboard() {
                   </div>
                 </div>
               )}
-              {mounted && <Chart options={chartOptions} series={chartSeries} type="area" height="100%" />}
+              {mounted && !loading && (
+                <Chart 
+                  key={`chart-${profitData.length}`} 
+                  options={chartOptions} 
+                  series={chartSeries} 
+                  type="area" 
+                  height="100%" 
+                />
+              )}
             </div>
           </div>
 

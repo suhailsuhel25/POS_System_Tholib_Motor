@@ -1,147 +1,180 @@
 import { db as prisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
+import { createTransactionSchema } from '@/schema';
 
-// Function to generate a unique transaction ID
-const generateUniqueId = async () => {
-  let isUnique = false;
-  let customId = '';
+const MAX_ID_RETRIES = 10;
 
-  // Loop until a unique ID is generated
-  while (!isUnique) {
-    customId = `TRS-${uuidv4().slice(0, 8)}`;
-    const existingOrder = await prisma.transaction.findUnique({
-      where: { id: customId },
-    });
-
-    // Check if the generated ID already exists in the database
-    if (!existingOrder) {
-      isUnique = true;
-    }
+const generateUniqueId = async (): Promise<string> => {
+  for (let i = 0; i < MAX_ID_RETRIES; i++) {
+    const customId = `TRS-${uuidv4().slice(0, 8)}`;
+    const existing = await prisma.transaction.findUnique({ where: { id: customId } });
+    if (!existing) return customId;
   }
-
-  return customId;
+  return `TRS-${uuidv4().slice(0, 8)}`;
 };
 
-// GET request handler to fetch all transactions (with basic pagination/filtering placeholders)
+const BATCH_SIZE = 100;
+
 export const GET = async (request: Request) => {
   try {
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get('limit') || '20');
-    // const page = parseInt(searchParams.get('page') || '1'); // Future implementation
+    const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
 
-    // Fetch transactions
     const transactions = await prisma.transaction.findMany({
-      orderBy: {
-        createdAt: 'desc',
-      },
+      orderBy: { createdAt: 'desc' },
       take: limit,
+      where: { deletedAt: null },
       include: {
         products: {
           include: {
             product: {
-              include: {
-                productstock: true,
-              }
+              include: { productstock: true }
             }
           }
         },
       }
     });
 
-    return NextResponse.json({ transactions }, { status: 200 });
+    const serialized = transactions.map((t) => ({
+      ...t,
+      totalAmount: t.totalAmount ? Number(t.totalAmount) : 0,
+      paymentAmount: t.paymentAmount ? Number(t.paymentAmount) : 0,
+      changeAmount: t.changeAmount ? Number(t.changeAmount) : 0,
+      discountAmount: t.discountAmount ? Number(t.discountAmount) : 0,
+      products: t.products.map((p) => ({
+        ...p,
+        product: {
+          ...p.product,
+          sellprice: Number(p.product.sellprice),
+          productstock: {
+            ...p.product.productstock,
+            buyPrice: Number(p.product.productstock.buyPrice),
+            sellPrice: Number(p.product.productstock.sellPrice),
+          },
+        },
+      })),
+    }));
+
+    return NextResponse.json({ transactions: serialized }, { status: 200 });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('GET /api/transactions error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 };
 
-// POST request handler to create a new transaction with products
 export const POST = async (request: Request) => {
   try {
     const body = await request.json();
-    const { items, paymentAmount, changeAmount } = body; // items: { id: string, quantity: number, price: number }[]
 
-    if (!items || items.length === 0) {
-      return NextResponse.json({ error: 'No items in cart' }, { status: 400 });
+    const parsed = createTransactionSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.errors.map(e => e.message).join(', ') },
+        { status: 400 }
+      );
     }
 
-    // Generate a unique transaction ID
+    const { items, paymentAmount, changeAmount, discountAmount } = parsed.data;
+
     const customId = await generateUniqueId();
 
-    // Calculate total amount
-    const totalAmount = items.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0);
-
-    // Start a transaction to ensure atomicity
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Create the transaction
       const transaction = await tx.transaction.create({
         data: {
           id: customId,
-          totalAmount,
+          totalAmount: 0,
           paymentAmount: Number(paymentAmount || 0),
           changeAmount: Number(changeAmount || 0),
+          discountAmount: Number(discountAmount || 0),
           status: 'SUKSES',
           isComplete: true,
         },
       });
 
-      // 2. For each item, create OnSaleProduct and update stock
-      for (const item of items) {
-        // Get the ProductStock to find the linked Product
-        const productStock = await tx.productStock.findUnique({
-          where: { id: item.id },
-          include: { Product: true },
+      let totalAmount = 0;
+
+      for (let i = 0; i < items.length; i += BATCH_SIZE) {
+        const batch = items.slice(i, i + BATCH_SIZE);
+
+        const productIds = batch.map((item: any) => item.id);
+        const productStocks = await tx.productStock.findMany({
+          where: { id: { in: productIds } },
         });
 
-        if (!productStock) {
-          throw new Error(`Product with id ${item.id} not found`);
-        }
+        const stockMap = new Map(productStocks.map((ps) => [ps.id, ps]));
 
-        if (productStock.stock < item.quantity) {
-          throw new Error(`Insufficient stock for ${productStock.name}`);
-        }
+        const insufficientStockItems: string[] = [];
 
-        // Ensure Product exists (create if needed) and get productId
-        let productId: string;
-        if (productStock.Product) {
-          productId = productStock.Product.productId;
-        } else {
-          const newProduct = await tx.product.create({
+        for (const item of batch) {
+          const productStock = stockMap.get(item.id);
+
+          if (!productStock) {
+            throw new Error(`Produk dengan id ${item.id} tidak ditemukan`);
+          }
+
+          if (productStock.stock < item.quantity) {
+            insufficientStockItems.push(productStock.name);
+            continue;
+          }
+
+          const serverPrice = Number(productStock.sellPrice);
+          totalAmount += serverPrice * item.quantity;
+
+          await tx.productStock.updateMany({
+            where: {
+              id: item.id,
+              stock: { gte: item.quantity },
+            },
             data: {
-              productId: productStock.id,
-              sellprice: productStock.sellPrice,
+              stock: { decrement: item.quantity },
             },
           });
-          productId = newProduct.productId;
+
+          let product = await tx.product.findUnique({ where: { productId: item.id } });
+          if (!product) {
+            product = await tx.product.create({
+              data: {
+                productId: item.id,
+                sellprice: productStock.sellPrice,
+              },
+            });
+          }
+
+          await tx.onSaleProduct.create({
+            data: {
+              productId: product.productId,
+              quantity: item.quantity,
+              transactionId: transaction.id,
+            },
+          });
         }
 
-        // Create OnSaleProduct
-        await tx.onSaleProduct.create({
-          data: {
-            productId,
-            quantity: item.quantity,
-            transactionId: transaction.id,
-          },
-        });
-
-        // Update stock
-        await tx.productStock.update({
-          where: { id: item.id },
-          data: {
-            stock: {
-              decrement: item.quantity,
-            },
-          },
-        });
+        if (insufficientStockItems.length > 0) {
+          throw new Error(`Stok tidak mencukupi untuk: ${insufficientStockItems.join(', ')}`);
+        }
       }
 
-      return transaction;
+      const finalDiscount = Number(discountAmount || 0);
+      const finalTotal = Math.max(0, totalAmount - finalDiscount);
+
+      return tx.transaction.update({
+        where: { id: transaction.id },
+        data: { totalAmount: finalTotal },
+      });
     });
 
-    return NextResponse.json(result, { status: 201 });
+    const serialized = {
+      ...result,
+      totalAmount: result.totalAmount ? Number(result.totalAmount) : 0,
+      paymentAmount: result.paymentAmount ? Number(result.paymentAmount) : 0,
+      changeAmount: result.changeAmount ? Number(result.changeAmount) : 0,
+      discountAmount: result.discountAmount ? Number(result.discountAmount) : 0,
+    };
+
+    return NextResponse.json(serialized, { status: 201 });
   } catch (error: any) {
-    console.error('Transaction error:', error);
+    console.error('POST /api/transactions error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 };
-

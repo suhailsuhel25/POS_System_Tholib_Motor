@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db as prisma } from '@/lib/db';
+import { updateOnSaleSchema } from '@/schema';
 
-// Handler function for PATCH request
 export const PATCH = async (
   request: Request,
   { params }: { params: { id: string } }
@@ -9,41 +9,46 @@ export const PATCH = async (
   try {
     const body = await request.json();
 
-    // Update the quantity of the order product with the specified id
+    const parsed = updateOnSaleSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.errors.map(e => e.message).join(', ') },
+        { status: 400 }
+      );
+    }
+
+    const data = parsed.data;
+
     const editedOrderProduct = await prisma.onSaleProduct.update({
-      where: {
-        id: String(params.id),
-      },
-      data: {
-        quantity: body.qTy,
-      },
+      where: { id: String(params.id) },
+      data: { quantity: data.qTy },
     });
 
-    // Return the updated order product in the response
-    return NextResponse.json(editedOrderProduct, { status: 201 });
+    return NextResponse.json(editedOrderProduct, { status: 200 });
   } catch (error: any) {
-    // Handle errors
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error.code === 'P2025') {
+      return NextResponse.json({ error: 'Item tidak ditemukan' }, { status: 404 });
+    }
+    console.error('PATCH /api/onsale/[id] error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 };
 
-// Handler function for DELETE request
 export const DELETE = async (
   request: Request,
   { params }: { params: { id: string } }
 ) => {
   try {
-    // Delete the order product with the specified id
     const deletedOrderProduct = await prisma.onSaleProduct.delete({
-      where: {
-        id: String(params.id),
-      },
+      where: { id: String(params.id) },
     });
 
-    // Return a success message in the response
     return NextResponse.json(deletedOrderProduct, { status: 200 });
   } catch (error: any) {
-    // Handle errors
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error.code === 'P2025') {
+      return NextResponse.json({ error: 'Item tidak ditemukan' }, { status: 404 });
+    }
+    console.error('DELETE /api/onsale/[id] error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 };

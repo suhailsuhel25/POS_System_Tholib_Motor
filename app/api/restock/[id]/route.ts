@@ -1,38 +1,35 @@
 import { db as prisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { restockSingleSchema } from '@/schema';
 
 export const PATCH = async (
   request: Request,
   { params }: { params: { id: string } }
 ) => {
   try {
-    // Parse the request body as JSON
     const body = await request.json();
 
-    // Get the current stock of the product
-    const currentProduct = await prisma.productStock.findUnique({
-      where: {
-        id: String(params.id),
-      },
+    const parsed = restockSingleSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.errors.map(e => e.message).join(', ') },
+        { status: 400 }
+      );
+    }
+
+    const data = parsed.data;
+
+    const result = await prisma.productStock.update({
+      where: { id: String(params.id) },
+      data: { stock: { increment: data.stockProduct } },
     });
 
-    // Calculate the new stock by adding the body's stockProduct to the current stock
-    const newStock = (currentProduct?.stock || 0) + body.stockProduct;
-
-    // Update the product's stock
-    const updatedProduct = await prisma.productStock.update({
-      where: {
-        id: String(params.id),
-      },
-      data: {
-        stock: newStock,
-      },
-    });
-
-    // Return the updated product in the response
-    return NextResponse.json(updatedProduct, { status: 201 });
+    return NextResponse.json(result, { status: 200 });
   } catch (error: any) {
-    // Handle errors
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error.code === 'P2025') {
+      return NextResponse.json({ error: 'Produk tidak ditemukan' }, { status: 404 });
+    }
+    console.error('PATCH /api/restock/[id] error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 };

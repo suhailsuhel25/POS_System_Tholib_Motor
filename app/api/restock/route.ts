@@ -1,41 +1,54 @@
 import { db as prisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 
-// Handler function for POST request to update product stock
+const restockSchema = z.object({
+  stock: z.number().int().positive('Jumlah stok harus lebih dari 0'),
+  unitCost: z.number().min(0, 'Harga satuan tidak boleh negatif').optional().default(0),
+});
+
 export const POST = async (request: Request) => {
   try {
-    // Parse the request body as JSON
     const body = await request.json();
+    const parsed = restockSchema.safeParse(body);
 
-    // Validate the required fields
-    if (typeof body.stock !== 'number') {
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: 'stock is required and must be a number' },
+        { error: parsed.error.errors.map(e => e.message).join(', ') },
         { status: 400 }
       );
     }
 
-    // Get all products from the productStock table
-    const allProducts = await prisma.productStock.findMany();
+    const { stock, unitCost } = parsed.data;
+    const totalCost = stock * unitCost;
 
-    // Update each product's stock by adding the stock from the request body
-    const updatePromises = allProducts.map((product) =>
-      prisma.productStock.update({
-        where: { id: product.id },
-        data: { stock: product.stock + body.stock },
-      })
-    );
+    const result = await prisma.productStock.updateMany({
+      data: {
+        stock: { increment: stock },
+      },
+    });
 
-    // Wait for all updates to complete
-    await Promise.all(updatePromises);
+    // Create expense record if there's a cost
+    if (totalCost > 0) {
+      await prisma.expense.create({
+        data: {
+          description: `Restok ${stock} item`,
+          amount: totalCost,
+          category: 'RESTOK',
+          notes: `Penambahan stok ${stock} item`,
+        },
+      });
+    }
 
-    // Return a success message
     return NextResponse.json(
-      { message: 'Updated stock for all products' },
+      { 
+        message: `Berhasil menambah stok ${stock} untuk ${result.count} produk`,
+        totalCost,
+      },
       { status: 200 }
     );
   } catch (error: any) {
-    // Handle errors
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('POST /api/restock error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 };

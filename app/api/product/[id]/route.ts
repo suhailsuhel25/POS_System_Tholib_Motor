@@ -1,7 +1,7 @@
 import { db as prisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { updateProductSchema } from '@/schema';
 
-// Handler function for PATCH request
 export const PATCH = async (
   request: Request,
   { params }: { params: { id: string } }
@@ -9,60 +9,85 @@ export const PATCH = async (
   try {
     const body = await request.json();
 
-    // Update the product details and related product information
-    const editProduct = await prisma.productStock.update({
-      where: {
-        id: String(params.id),
-      },
-      data: {
-        name: body.name,
-        stock: body.stock,
-        brand: body.brand,
-        buyPrice: body.buyPrice,
-        sellPrice: body.sellPrice,
-        masterCategory: body.masterCategory,
-        category: body.category || '',
-        Product: {
-          update: {
-            where: {
-              productId: String(params.id),
-            },
-            data: {
-              sellprice: body.sellPrice,
-            },
-          },
-        },
-      },
-      include: {
-        Product: true,
-      },
+    const parsed = updateProductSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.errors.map(e => e.message).join(', ') },
+        { status: 400 }
+      );
+    }
+
+    const existingProduct = await prisma.product.findUnique({
+      where: { productId: String(params.id) },
     });
 
-    // Return the updated product in the response
-    return NextResponse.json(editProduct, { status: 200 });
+    const updateData: any = {
+      name: parsed.data.name,
+      stock: parsed.data.stock,
+      brand: parsed.data.brand as any,
+      buyPrice: parsed.data.buyPrice,
+      sellPrice: parsed.data.sellPrice,
+      masterCategory: parsed.data.masterCategory,
+      category: parsed.data.category,
+      barcode: parsed.data.barcode !== undefined ? parsed.data.barcode : undefined,
+    };
+
+    if (parsed.data.sellPrice !== undefined) {
+      if (existingProduct) {
+        updateData.Product = {
+          update: {
+            where: { productId: String(params.id) },
+            data: { sellprice: parsed.data.sellPrice },
+          },
+        };
+      } else {
+        updateData.Product = {
+          create: {
+            sellprice: parsed.data.sellPrice,
+          },
+        };
+      }
+    }
+
+    const editProduct = await prisma.productStock.update({
+      where: { id: String(params.id) },
+      data: updateData,
+      include: { Product: true },
+    });
+
+    return NextResponse.json({
+      ...editProduct,
+      buyPrice: Number(editProduct.buyPrice),
+      sellPrice: Number(editProduct.sellPrice),
+      Product: editProduct.Product ? {
+        ...editProduct.Product,
+        sellprice: Number(editProduct.Product.sellprice),
+      } : null,
+    }, { status: 200 });
   } catch (error: any) {
-    // Handle errors
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error.code === 'P2025') {
+      return NextResponse.json({ error: 'Produk tidak ditemukan' }, { status: 404 });
+    }
+    console.error('PATCH /api/product/[id] error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 };
 
-// Handler function for DELETE request
 export const DELETE = async (
   request: Request,
   { params }: { params: { id: string } }
 ) => {
   try {
-    // Delete the product with the specified id
     const product = await prisma.productStock.delete({
-      where: {
-        id: String(params.id),
-      },
+      where: { id: String(params.id) },
     });
 
-    // Return a success message in the response
-    return NextResponse.json(product, { status: 200 });
+    return NextResponse.json({ message: 'Produk berhasil dihapus' }, { status: 200 });
   } catch (error: any) {
-    // Handle errors
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error.code === 'P2025') {
+      return NextResponse.json({ error: 'Produk tidak ditemukan' }, { status: 404 });
+    }
+    console.error('DELETE /api/product/[id] error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 };

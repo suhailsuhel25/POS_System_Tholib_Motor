@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import axios from '@/lib/axios';
 import { Search, Filter, Plus, MoreHorizontal, AlertTriangle, ChevronDown, X, Trash2, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -34,6 +34,7 @@ interface Product {
   category: string;
   masterCategory: string;
   skuManual: string;
+  barcode?: string;
   stock: number;
   buyPrice: number;
   sellPrice: number;
@@ -305,9 +306,10 @@ export default function ProductList() {
             <table className="w-full text-base text-left">
               <thead className="bg-[#F4F5F7] dark:bg-[#1D2125] text-[#44546F] dark:text-[#9FADBC] text-xs uppercase font-bold border-b border-[#DFE1E6] dark:border-[#2C333A] sticky top-0 z-10">
                 <tr>
-                  <th className="px-6 py-4 w-[35%]">Nama Produk</th>
-                  <th className="px-6 py-4 w-[15%]">Kategori</th>
-                  <th className="px-6 py-4 w-[20%]">Stok</th>
+                  <th className="px-6 py-4 w-[30%]">Nama Produk</th>
+                  <th className="px-6 py-4 w-[12%]">Barcode</th>
+                  <th className="px-6 py-4 w-[13%]">Kategori</th>
+                  <th className="px-6 py-4 w-[15%]">Stok</th>
                   <th className="px-6 py-4 text-right w-[15%]">Harga Beli</th>
                   <th className="px-6 py-4 text-right w-[15%]">Harga Jual</th>
                   <th className="px-6 py-4 w-12"></th>
@@ -317,14 +319,14 @@ export default function ProductList() {
                 {loading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <tr key={i}>
-                      <td colSpan={6} className="p-6 text-center">
+                      <td colSpan={7} className="p-6 text-center">
                         <div className="h-4 bg-[#EBECF0] dark:bg-[#2C333A] rounded animate-pulse w-3/4 mx-auto mb-2" />
                       </td>
                     </tr>
                   ))
                 ) : products.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="p-12 text-center text-[#626F86] dark:text-[#8C9BAB]">
+                    <td colSpan={7} className="p-12 text-center text-[#626F86] dark:text-[#8C9BAB]">
                       <div className="flex flex-col items-center justify-center">
                         <Search className="w-12 h-12 mb-4 opacity-20" />
                         <p className="text-lg font-medium">Tidak ada produk ditemukan</p>
@@ -341,6 +343,11 @@ export default function ProductList() {
                       >
                         <td className="px-6 py-4">
                           <div className="font-semibold text-[#172B4D] dark:text-[#B6C2CF] text-base">{product.name}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-sm text-[#626F86] dark:text-[#8C9BAB] font-mono">
+                            {product.barcode || '-'}
+                          </span>
                         </td>
                         <td className="px-6 py-4">
                           <span className="inline-flex items-center px-2.5 py-1 rounded text-sm font-medium bg-[#E9F2FF] text-[#0052CC] dark:bg-[#1C2B41] dark:text-[#579DFF]">
@@ -386,7 +393,7 @@ export default function ProductList() {
                     ))}
                     {loadingMore && (
                       <tr>
-                        <td colSpan={6} className="p-4 text-center">
+                        <td colSpan={7} className="p-4 text-center">
                           <div className="flex items-center justify-center gap-2 text-[#626F86] dark:text-[#8C9BAB]">
                             <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
                             <span>Memuat lebih banyak...</span>

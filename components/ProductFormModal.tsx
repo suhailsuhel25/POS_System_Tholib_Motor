@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import axios from '@/lib/axios';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -20,6 +20,7 @@ interface Product {
     category: string;
     masterCategory: string;
     skuManual: string;
+    barcode?: string;
     stock: number;
     buyPrice: number;
     sellPrice: number;
@@ -43,6 +44,7 @@ export function ProductFormModal({ open, onClose, initialData, onSuccess, master
         name: '',
         brand: 'HONDA',
         masterCategory: '',
+        barcode: '',
         stock: 0,
         buyPrice: 0,
         sellPrice: 0,
@@ -56,6 +58,7 @@ export function ProductFormModal({ open, onClose, initialData, onSuccess, master
                     name: initialData.name,
                     brand: initialData.brand,
                     masterCategory: initialData.masterCategory,
+                    barcode: initialData.barcode || '',
                     stock: initialData.stock,
                     buyPrice: initialData.buyPrice,
                     sellPrice: initialData.sellPrice,
@@ -66,6 +69,7 @@ export function ProductFormModal({ open, onClose, initialData, onSuccess, master
                     name: '',
                     brand: 'HONDA',
                     masterCategory: masterCategories[0] || '',
+                    barcode: '',
                     stock: 0,
                     buyPrice: 0,
                     sellPrice: 0,
@@ -97,12 +101,13 @@ export function ProductFormModal({ open, onClose, initialData, onSuccess, master
         }
 
         try {
+            const payload = { ...formData, category: '', barcode: formData.barcode?.trim() || null };
             if (initialData) {
                 // Edit Mode
-                await axios.patch(`/api/product/${initialData.id}`, { ...formData, category: '' });
+                await axios.patch(`/api/product/${initialData.id}`, payload);
             } else {
-                // Create Mode - backend might need category field so we send it as empty string
-                await axios.post('/api/product', { ...formData, category: '' });
+                // Create Mode
+                await axios.post('/api/product', payload);
             }
             onSuccess();
             onClose();
@@ -142,6 +147,17 @@ export function ProductFormModal({ open, onClose, initialData, onSuccess, master
                                 value={formData.name}
                                 onChange={handleChange}
                                 placeholder="Contoh: Oli Yamalube 1L"
+                                className="w-full h-10 px-3 rounded-md border border-[#DFE1E6] dark:border-[#2C333A] bg-white dark:bg-[#1D2125] focus:ring-2 focus:ring-[#0052CC]"
+                            />
+                        </div>
+
+                        <div className="space-y-2 col-span-2">
+                            <label className="text-sm font-medium text-[#172B4D] dark:text-[#B6C2CF]">Barcode</label>
+                            <input
+                                name="barcode"
+                                value={formData.barcode}
+                                onChange={handleChange}
+                                placeholder="Scan atau ketik barcode (opsional)"
                                 className="w-full h-10 px-3 rounded-md border border-[#DFE1E6] dark:border-[#2C333A] bg-white dark:bg-[#1D2125] focus:ring-2 focus:ring-[#0052CC]"
                             />
                         </div>

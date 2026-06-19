@@ -1,0 +1,17 @@
+node_modules
+.git
+.env
+.env.*
+.next
+out
+android
+*.md
+.vscode
+coverage
+prisma/migrations
+prisma/dbml
+prisma/seed.ts
+prisma/fake-data.ts
+scripts
+data-sparepart
+capacitor.config.ts

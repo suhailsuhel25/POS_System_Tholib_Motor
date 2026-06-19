@@ -1,10 +1,8 @@
 import { NextResponse } from 'next/server';
 import { db as prisma } from '@/lib/db';
 
-// Handler function for GET request to fetch product stocks
 export async function GET() {
   try {
-    // Fetch all product stocks from the database, including the sell price of each product
     const productStocks = await prisma.productStock.findMany({
       include: {
         Product: {
@@ -15,12 +13,21 @@ export async function GET() {
       },
     });
 
-    // Return the product stocks in the response
-    return NextResponse.json(productStocks, { status: 200 });
+    const serialized = productStocks.map((ps) => ({
+      ...ps,
+      buyPrice: Number(ps.buyPrice),
+      sellPrice: Number(ps.sellPrice),
+      Product: ps.Product ? {
+        ...ps.Product,
+        sellprice: Number(ps.Product.sellprice),
+      } : null,
+    }));
+
+    return NextResponse.json(serialized, { status: 200 });
   } catch (error) {
-    // Handle errors if fetching product stocks fails
+    console.error('GET /api/storage error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch product stocks' },
+      { error: 'Internal Server Error' },
       { status: 500 }
     );
   }

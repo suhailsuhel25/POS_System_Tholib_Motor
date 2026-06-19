@@ -1,46 +1,41 @@
 import { db as prisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { createOnSaleSchema } from '@/schema';
 
-// Handler function for POST request
 export const POST = async (request: Request) => {
   try {
     const body = await request.json();
 
-    // Check if a product with the same productId and transactionId already exists in the database
-    const existingOrderProduct = await prisma.onSaleProduct.findFirst({
+    const parsed = createOnSaleSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.errors.map(e => e.message).join(', ') },
+        { status: 400 }
+      );
+    }
+
+    const data = parsed.data;
+
+    const onSaleProduct = await prisma.onSaleProduct.upsert({
       where: {
-        productId: body.productId,
-        transactionId: body.transactionId,
+        productId_transactionId: {
+          productId: data.productId,
+          transactionId: data.transactionId,
+        },
+      },
+      update: {
+        quantity: { increment: data.qTy },
+      },
+      create: {
+        transactionId: data.transactionId,
+        productId: data.productId,
+        quantity: data.qTy,
       },
     });
 
-    let onSaleProduct;
-
-    if (existingOrderProduct) {
-      // If it exists, update the quantity by adding the new quantity to the existing quantity
-      onSaleProduct = await prisma.onSaleProduct.update({
-        where: {
-          id: existingOrderProduct.id, // Use the id of the existing product
-        },
-        data: {
-          quantity: existingOrderProduct.quantity + body.qTy,
-        },
-      });
-    } else {
-      // If it doesn't exist, create a new product
-      onSaleProduct = await prisma.onSaleProduct.create({
-        data: {
-          transactionId: body.transactionId,
-          productId: body.productId,
-          quantity: body.qTy,
-        },
-      });
-    }
-
-    // Return the created or updated product in the response
     return NextResponse.json(onSaleProduct, { status: 201 });
   } catch (error: any) {
-    // Handle errors
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('POST /api/onsale error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 };

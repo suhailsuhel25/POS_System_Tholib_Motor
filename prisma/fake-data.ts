@@ -1,4 +1,4 @@
-import { TransactionStatus, UserRole, Brand } from '@prisma/client';
+import { TransactionStatus, UserRole, Brand, ExpenseCategory } from '@prisma/client';
 import { faker } from '@faker-js/faker';
 import Decimal from 'decimal.js';
 
@@ -34,6 +34,7 @@ export function fakeProductStock() {
     category: faker.lorem.words(5),
     masterCategory: faker.lorem.words(5),
     skuManual: faker.lorem.words(5),
+    barcode: undefined,
     updatedAt: faker.date.anytime(),
   };
 }
@@ -44,25 +45,26 @@ export function fakeProductStockComplete() {
     imageProduct: undefined,
     stock: 0,
     brand: faker.helpers.arrayElement([Brand.HONDA, Brand.YAMAHA, Brand.KAWASAKI, Brand.SUZUKI] as const),
-    buyPrice: 0,
+    buyPrice: new Decimal(0),
     category: faker.lorem.words(5),
     createdAt: new Date(),
     masterCategory: faker.lorem.words(5),
-    sellPrice: 0,
+    sellPrice: new Decimal(0),
     skuManual: faker.lorem.words(5),
+    barcode: undefined,
     updatedAt: faker.date.anytime(),
   };
 }
 export function fakeProduct() {
   return {
-    sellprice: faker.number.float(),
+    sellprice: new Decimal(faker.number.float()),
   };
 }
 export function fakeProductComplete() {
   return {
     id: faker.string.uuid(),
     productId: faker.string.uuid(),
-    sellprice: faker.number.float(),
+    sellprice: new Decimal(faker.number.float()),
   };
 }
 export function fakeOnSaleProduct() {
@@ -82,17 +84,20 @@ export function fakeOnSaleProductComplete() {
 export function fakeTransaction() {
   return {
     totalAmount: undefined,
+    deletedAt: undefined,
   };
 }
 export function fakeTransactionComplete() {
   return {
-    id: faker.string.uuid(),
     totalAmount: undefined,
-    paymentAmount: 0,
-    changeAmount: 0,
-    status: TransactionStatus.SUKSES,
-    isComplete: false,
     createdAt: new Date(),
+    id: faker.string.uuid(),
+    isComplete: false,
+    changeAmount: new Decimal(0),
+    paymentAmount: new Decimal(0),
+    discountAmount: new Decimal(0),
+    status: TransactionStatus.SUKSES,
+    deletedAt: undefined,
   };
 }
 export function fakeShopData() {
@@ -104,5 +109,58 @@ export function fakeShopDataComplete() {
   return {
     id: faker.string.uuid(),
     name: undefined,
+  };
+}
+export function fakeDebt() {
+  return {
+    customerName: faker.lorem.words(5),
+    amount: new Decimal(faker.number.float()),
+    notes: undefined,
+    paidAt: undefined,
+    updatedAt: faker.date.anytime(),
+  };
+}
+export function fakeDebtComplete() {
+  return {
+    id: faker.string.uuid(),
+    customerName: faker.lorem.words(5),
+    amount: new Decimal(faker.number.float()),
+    transactionId: faker.string.uuid(),
+    notes: undefined,
+    isPaid: false,
+    paidAt: undefined,
+    createdAt: new Date(),
+    updatedAt: faker.date.anytime(),
+  };
+}
+export function fakeCategory() {
+  return {
+    name: faker.person.fullName(),
+  };
+}
+export function fakeCategoryComplete() {
+  return {
+    id: faker.string.uuid(),
+    name: faker.person.fullName(),
+    createdAt: new Date(),
+  };
+}
+export function fakeExpense() {
+  return {
+    description: faker.lorem.words(5),
+    amount: new Decimal(faker.number.float()),
+    notes: undefined,
+    updatedAt: faker.date.anytime(),
+  };
+}
+export function fakeExpenseComplete() {
+  return {
+    id: faker.string.uuid(),
+    description: faker.lorem.words(5),
+    amount: new Decimal(faker.number.float()),
+    category: ExpenseCategory.LAINNYA,
+    notes: undefined,
+    createdAt: new Date(),
+    updatedAt: faker.date.anytime(),
   };
 }

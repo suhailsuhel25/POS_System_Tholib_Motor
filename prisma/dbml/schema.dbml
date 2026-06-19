@@ -5,7 +5,7 @@
 Table User {
   id String [pk]
   name String [not null]
-  username String [not null]
+  username String [unique, not null]
   email String [unique]
   emailVerified DateTime
   image String
@@ -19,12 +19,13 @@ Table ProductStock {
   imageProduct String
   stock Int [not null, default: 0]
   brand Brand [not null]
-  buyPrice Float [not null, default: 0]
+  buyPrice Decimal [not null, default: 0]
   category String [not null]
   createdAt DateTime [default: `now()`, not null]
   masterCategory String [not null]
-  sellPrice Float [not null, default: 0]
+  sellPrice Decimal [not null, default: 0]
   skuManual String [unique, not null]
+  barcode String
   updatedAt DateTime [not null]
   Product Product
 }
@@ -32,7 +33,7 @@ Table ProductStock {
 Table Product {
   id String [pk]
   productId String [unique, not null]
-  sellprice Float [not null]
+  sellprice Decimal [not null]
   OnSaleProduct OnSaleProduct [not null]
   productstock ProductStock [not null]
 }
@@ -45,17 +46,24 @@ Table OnSaleProduct {
   transactionId String [not null]
   product Product [not null]
   transaction Transaction [not null]
+
+  indexes {
+    (productId, transactionId) [unique]
+  }
 }
 
 Table Transaction {
-  id String [pk]
   totalAmount Decimal
-  paymentAmount Float [default: 0]
-  changeAmount Float [default: 0]
-  status TransactionStatus [not null, default: 'SUKSES']
-  isComplete Boolean [not null, default: false]
   createdAt DateTime [default: `now()`, not null]
+  id String [pk]
+  isComplete Boolean [not null, default: false]
+  changeAmount Decimal [default: 0]
+  paymentAmount Decimal [default: 0]
+  discountAmount Decimal [default: 0]
+  status TransactionStatus [not null, default: 'SUKSES']
+  deletedAt DateTime
   products OnSaleProduct [not null]
+  debt Debt
 }
 
 Table ShopData {
@@ -63,9 +71,39 @@ Table ShopData {
   name String
 }
 
+Table Debt {
+  id String [pk]
+  customerName String [not null]
+  amount Decimal [not null]
+  transactionId String [unique, not null]
+  transaction Transaction [not null]
+  notes String
+  isPaid Boolean [not null, default: false]
+  paidAt DateTime
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+}
+
+Table Category {
+  id String [pk]
+  name String [unique, not null]
+  createdAt DateTime [default: `now()`, not null]
+}
+
+Table Expense {
+  id String [pk]
+  description String [not null]
+  amount Decimal [not null]
+  category ExpenseCategory [not null, default: 'LAINNYA']
+  notes String
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+}
+
 Enum TransactionStatus {
   SUKSES
   RETUR
+  HUTANG
 }
 
 Enum UserRole {
@@ -81,8 +119,17 @@ Enum Brand {
   SUZUKI
 }
 
+Enum ExpenseCategory {
+  RESTOK
+  OPERASIONAL
+  GAJI
+  LAINNYA
+}
+
 Ref: Product.productId - ProductStock.id [delete: Cascade]
 
 Ref: OnSaleProduct.productId > Product.productId [delete: Cascade]
 
 Ref: OnSaleProduct.transactionId > Transaction.id [delete: Cascade]
+
+Ref: Debt.transactionId - Transaction.id [delete: Cascade]

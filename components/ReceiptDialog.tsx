@@ -46,6 +46,7 @@ export function ReceiptDialog({ open, onClose, transactionData }: ReceiptDialogP
         total: transactionData.total,
         paymentAmount: transactionData.paymentAmount,
         changeAmount: transactionData.changeAmount,
+        discountAmount: transactionData.discountAmount,
         status: transactionData.status
     };
 

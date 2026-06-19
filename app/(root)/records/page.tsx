@@ -4,18 +4,12 @@ import React, { useState, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { Calendar, Download, ShoppingBag, Eye, TrendingUp, Banknote, Package, ChevronRight, Search, FileText, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import axios from 'axios';
+import axios from '@/lib/axios';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
+import { useTheme } from 'next-themes';
 import Link from 'next/link';
 
 // Dynamically import ApexCharts to avoid SSR issues
@@ -23,26 +17,29 @@ const Chart = dynamic(() => import('react-apexcharts'), { ssr: false });
 
 export default function RecordsPage() {
   const [activeTab, setActiveTab] = useState('laporan');
-  const [period, setPeriod] = useState('7d');
   const [loading, setLoading] = useState(true);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [profitData, setProfitData] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+
+  const [startDate, setStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
+    return d.toISOString().split('T')[0];
+  });
+  const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
 
   // Fetch data
   const fetchData = async () => {
     try {
       setLoading(true);
 
-      const endDate = new Date();
-      let startDate = new Date();
-      if (period === '7d') startDate.setDate(endDate.getDate() - 7);
-      else if (period === '30d') startDate.setDate(endDate.getDate() - 30);
-      else if (period === '3m') startDate.setMonth(endDate.getMonth() - 3);
+      const start = new Date(startDate + 'T00:00:00');
+      const end = new Date(endDate + 'T23:59:59');
 
       const [transRes, profitRes] = await Promise.all([
         axios.get(`/api/transactions?limit=200`),
-        axios.get(`/api/profit?start=${startDate.toISOString()}&end=${endDate.toISOString()}`)
+        axios.get(`/api/profit?start=${start.toISOString()}&end=${end.toISOString()}`)
       ]);
 
       setTransactions(transRes.data.transactions || []);
@@ -56,14 +53,14 @@ export default function RecordsPage() {
 
   useEffect(() => {
     fetchData();
-  }, [period]);
+  }, [startDate, endDate]);
 
   // Statistics calculation
   const stats = useMemo(() => {
     const successTransactions = transactions.filter(t => t.status !== 'RETUR');
     const totalTransactions = successTransactions.length;
     const totalRevenue = successTransactions.reduce((sum, t) => sum + Number(t.totalAmount || 0), 0);
-    const totalProfit = profitData.reduce((sum, d) => sum + Number(d.netIncome || 0), 0);
+    const totalProfit = profitData.reduce((sum, d) => sum + Number(d.profit || 0), 0);
     const avgTransaction = totalTransactions > 0 ? totalRevenue / totalTransactions : 0;
 
     return {
@@ -83,9 +80,11 @@ export default function RecordsPage() {
     );
   }, [transactions, searchQuery]);
 
+  const { theme } = useTheme();
+
   // Chart: Revenue Trend
   const salesOptions: ApexCharts.ApexOptions = {
-    chart: { type: 'area', toolbar: { show: false }, fontFamily: 'inherit' },
+    chart: { type: 'area', toolbar: { show: false }, fontFamily: 'inherit', animations: { enabled: false } },
     colors: ['#0052CC', '#36B37E'],
     fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.1, stops: [0, 90, 100] } },
     dataLabels: { enabled: false },
@@ -95,19 +94,19 @@ export default function RecordsPage() {
       axisBorder: { show: false },
       labels: { style: { colors: '#626F86', fontSize: '10px' } }
     },
-    yaxis: { labels: { style: { colors: '#626F86', fontSize: '10px' }, formatter: (v) => `Rp${(v / 1000).toLocaleString()}k` } },
+    yaxis: { labels: { style: { colors: '#626F86', fontSize: '10px' }, formatter: (v) => `Rp${(Number(v) / 1000).toLocaleString()}k` } },
     grid: { borderColor: '#DFE1E6', strokeDashArray: 4 },
-    tooltip: { theme: 'light' }
+    tooltip: { theme: theme === 'dark' ? 'dark' : 'light' }
   };
 
   const salesSeries = [
-    { name: 'Omset', data: profitData.map(d => d.grossIncome) },
-    { name: 'Profit', data: profitData.map(d => d.netIncome) }
+    { name: 'Omset', data: profitData.map(d => Number(d.revenue || 0)) },
+    { name: 'Profit', data: profitData.map(d => Number(d.profit || 0)) }
   ];
 
   // Chart: Category Distribution (Mock but derived from counts if we had them)
   const categoryOptions: ApexCharts.ApexOptions = {
-    chart: { type: 'donut', fontFamily: 'inherit' },
+    chart: { type: 'donut', fontFamily: 'inherit', animations: { enabled: false } },
     colors: ['#0052CC', '#36B37E', '#FF991F', '#EB5757', '#6554C0'],
     labels: ['HONDA', 'YAMAHA', 'KAWASAKI', 'SUZUKI', 'LAINNYA'],
     plotOptions: { pie: { donut: { size: '70%', labels: { show: true, total: { show: true, label: 'Total', formatter: () => stats.totalTransactions.toString() } } } } },
@@ -138,7 +137,7 @@ export default function RecordsPage() {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `Laporan_Penjualan_${period}.csv`;
+    link.download = `Laporan_Penjualan_${startDate}_${endDate}.csv`;
     link.click();
   };
 
@@ -169,17 +168,24 @@ export default function RecordsPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <Select value={period} onValueChange={setPeriod}>
-            <SelectTrigger className="w-[180px] h-10 bg-white dark:bg-[#1D2125] border-[#DFE1E6] dark:border-[#2C333A]">
-              <Calendar className="w-4 h-4 mr-2 text-[#626F86]" />
-              <SelectValue placeholder="Pilih Periode" />
-            </SelectTrigger>
-            <SelectContent className="bg-white dark:bg-[#22272B]">
-              <SelectItem value="7d">7 Hari Terakhir</SelectItem>
-              <SelectItem value="30d">30 Hari Terakhir</SelectItem>
-              <SelectItem value="3m">3 Bulan Terakhir</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2 bg-white dark:bg-[#1D2125] border border-[#DFE1E6] dark:border-[#2C333A] rounded-md px-3 h-10">
+            <Calendar className="w-4 h-4 text-[#626F86] shrink-0" />
+            <input
+              type="date"
+              value={startDate}
+              max={endDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="bg-transparent border-none outline-none text-sm text-[#172B4D] dark:text-[#B6C2CF] w-[130px] cursor-pointer"
+            />
+            <span className="text-[#626F86] text-sm">-</span>
+            <input
+              type="date"
+              value={endDate}
+              min={startDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="bg-transparent border-none outline-none text-sm text-[#172B4D] dark:text-[#B6C2CF] w-[130px] cursor-pointer"
+            />
+          </div>
           <Button variant="outline" onClick={handleExport} disabled={loading || transactions.length === 0} className="gap-2 border-[#DFE1E6] dark:border-[#2C333A] h-10">
             <Download className="w-4 h-4 text-[#626F86]" />
             <span className="hidden sm:inline">Ekspor CSV</span>
@@ -260,7 +266,7 @@ export default function RecordsPage() {
                   {loading ? (
                     <div className="w-full h-full flex items-center justify-center text-xs text-[#626F86]">Memuat grafik...</div>
                   ) : (
-                    <Chart options={salesOptions} series={salesSeries} type="area" height="100%" />
+                    <Chart key={`sales-${profitData.length}`} options={salesOptions} series={salesSeries} type="area" height="100%" />
                   )}
                 </div>
               </div>
@@ -268,7 +274,7 @@ export default function RecordsPage() {
                 <h3 className="font-bold text-[#172B4D] dark:text-white text-base mb-6">Distribusi Brand</h3>
                 <div className="flex-1 min-h-[300px] flex items-center justify-center">
                   {loading ? <div className="text-xs text-[#626F86]">Memuat data...</div> : (
-                    <Chart options={categoryOptions} series={brandStats.series} type="donut" width="100%" />
+                    <Chart key={`brand-${brandStats.series.length}`} options={categoryOptions} series={brandStats.series} type="donut" width="100%" />
                   )}
                 </div>
               </div>

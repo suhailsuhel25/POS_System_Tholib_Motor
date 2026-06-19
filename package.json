@@ -10,6 +10,11 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@capacitor/android": "^8.4.0",
+    "@capacitor/barcode-scanner": "^3.0.2",
+    "@capacitor/cli": "^8.4.0",
+    "@capacitor/core": "^8.4.0",
+    "@e-is/capacitor-bluetooth-serial": "^6.0.3",
     "@hookform/resolvers": "^3.4.2",
     "@prisma/client": "^5.14.0",
     "@radix-ui/react-alert-dialog": "^1.0.5",

@@ -1,7 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db as prisma } from '@/lib/db';
+import { updateTransactionSchema } from '@/schema';
 
-// GET request handler to fetch onSaleProducts by transactionId
+function serializeTransaction(t: any) {
+  return {
+    ...t,
+    totalAmount: t.totalAmount ? Number(t.totalAmount) : 0,
+    paymentAmount: t.paymentAmount ? Number(t.paymentAmount) : 0,
+    changeAmount: t.changeAmount ? Number(t.changeAmount) : 0,
+    discountAmount: t.discountAmount ? Number(t.discountAmount) : 0,
+    products: t.products?.map((p: any) => ({
+      ...p,
+      product: {
+        ...p.product,
+        sellprice: Number(p.product?.sellprice || 0),
+        productstock: p.product?.productstock ? {
+          ...p.product.productstock,
+          buyPrice: Number(p.product.productstock.buyPrice || 0),
+          sellPrice: Number(p.product.productstock.sellPrice || 0),
+        } : undefined,
+      },
+    })) || [],
+  };
+}
+
 export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }
@@ -9,44 +31,30 @@ export async function GET(
   const { id } = params;
 
   try {
-    // Fetch transaction with the given id, including detailed product information
     const transaction = await prisma.transaction.findUnique({
-      where: { id },
+      where: { id, deletedAt: null },
       include: {
         products: {
           include: {
             product: {
-              include: {
-                productstock: true,
-              },
+              include: { productstock: true },
             },
           },
           orderBy: {
-            product: {
-              productstock: {
-                name: 'asc',
-              },
-            },
+            product: { productstock: { name: 'asc' } },
           },
         },
       },
     });
 
-    // Return 404 if transaction is not found
     if (!transaction) {
-      return NextResponse.json(
-        { message: 'Transaction not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
     }
 
-    return NextResponse.json(transaction, { status: 200 });
+    return NextResponse.json(serializeTransaction(transaction), { status: 200 });
   } catch (error) {
-    console.error('API Error fetching transaction:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    console.error('GET /api/transactions/[id] error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
 
@@ -57,49 +65,45 @@ export const PATCH = async (
   try {
     const { id } = params;
     const body = await request.json();
-    const { status } = body;
+
+    const parsed = updateTransactionSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.errors.map(e => e.message).join(', ') },
+        { status: 400 }
+      );
+    }
+
+    const { status } = parsed.data;
 
     if (status === 'RETUR') {
-      // Logic for return: change status and RESTORE stock
       const result = await prisma.$transaction(async (tx) => {
-        // 1. Get the transaction with products
         const transaction = await tx.transaction.findUnique({
-          where: { id },
+          where: { id, deletedAt: null },
           include: {
-            products: {
-              include: {
-                product: true
-              }
-            }
+            products: { include: { product: true } }
           }
         });
 
-        if (!transaction) throw new Error('Transaction not found');
-        if (transaction.status === 'RETUR') throw new Error('Transaction is already returned');
+        if (!transaction) throw new Error('Transaksi tidak ditemukan');
+        if (transaction.status === 'RETUR') throw new Error('Transaksi sudah dikembalikan');
 
-        // 2. Restore stock for each product
         for (const item of transaction.products) {
           await tx.productStock.update({
             where: { id: item.productId },
-            data: {
-              stock: {
-                increment: item.quantity
-              }
-            }
+            data: { stock: { increment: item.quantity } }
           });
         }
 
-        // 3. Update transaction status
         return await tx.transaction.update({
           where: { id },
           data: { status: 'RETUR' }
         });
       });
 
-      return NextResponse.json(result, { status: 200 });
+      return NextResponse.json(serializeTransaction(result), { status: 200 });
     }
 
-    // Default patch logic (if needed for other updates)
     const updateData: any = {};
     if (body.totalAmount !== undefined) updateData.totalAmount = body.totalAmount;
     if (body.isComplete !== undefined) updateData.isComplete = body.isComplete;
@@ -109,36 +113,50 @@ export const PATCH = async (
       data: updateData,
     });
 
-    return NextResponse.json(updatedTransaction, { status: 200 });
+    return NextResponse.json(serializeTransaction(updatedTransaction), { status: 200 });
   } catch (error: any) {
-    console.error('Error updating transaction:', error);
+    console.error('PATCH /api/transactions/[id] error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 };
 
-// DELETE request handler to delete a transaction
 export const DELETE = async (
   request: Request,
   { params }: { params: { id: string } }
 ) => {
   try {
-    // Delete transaction by id
-    const transaction = await prisma.transaction.delete({
-      where: {
-        id: String(params.id),
-      },
+    const { id } = params;
+
+    const result = await prisma.$transaction(async (tx) => {
+      const transaction = await tx.transaction.findUnique({
+        where: { id, deletedAt: null },
+        include: { products: true },
+      });
+
+      if (!transaction) {
+        throw new Error('Transaction not found');
+      }
+
+      for (const item of transaction.products) {
+        await tx.productStock.update({
+          where: { id: item.productId },
+          data: { stock: { increment: item.quantity } },
+        });
+      }
+
+      return await tx.transaction.update({
+        where: { id },
+        data: { deletedAt: new Date() },
+      });
     });
 
-    return NextResponse.json(transaction, { status: 200 });
+    return NextResponse.json(serializeTransaction(result), { status: 200 });
   } catch (error: any) {
     if (error.code === 'P2025') {
-      // Prisma error code for data not found
-      return NextResponse.json(
-        { error: 'Transaction not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('DELETE /api/transactions/[id] error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 };

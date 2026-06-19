@@ -7,6 +7,7 @@ export async function GET() {
         const transactions = await prisma.transaction.findMany({
             where: {
                 isComplete: true,
+                deletedAt: null,
             },
             orderBy: {
                 createdAt: 'desc',
@@ -25,7 +26,27 @@ export async function GET() {
             },
         });
 
-        return NextResponse.json({ transactions }, { status: 200 });
+        const serialized = transactions.map((t) => ({
+            ...t,
+            totalAmount: t.totalAmount ? Number(t.totalAmount) : 0,
+            paymentAmount: t.paymentAmount ? Number(t.paymentAmount) : 0,
+            changeAmount: t.changeAmount ? Number(t.changeAmount) : 0,
+            discountAmount: t.discountAmount ? Number(t.discountAmount) : 0,
+            products: t.products.map((p) => ({
+                ...p,
+                product: {
+                    ...p.product,
+                    sellprice: Number(p.product.sellprice),
+                    productstock: {
+                        ...p.product.productstock,
+                        buyPrice: Number(p.product.productstock.buyPrice),
+                        sellPrice: Number(p.product.productstock.sellPrice),
+                    },
+                },
+            })),
+        }));
+
+        return NextResponse.json({ transactions: serialized }, { status: 200 });
     } catch (error) {
         console.error('Error fetching recent transactions:', error);
         return NextResponse.json(

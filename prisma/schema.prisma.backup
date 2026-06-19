@@ -1,0 +1,104 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+generator custom_generator {
+  provider = "prisma-generator-fake-data"
+}
+
+generator dbml {
+  provider = "prisma-dbml-generator"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  username      String
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  role          UserRole  @default(UNKNOW)
+}
+
+model ProductStock {
+  id             String   @id @default(cuid())
+  name           String
+  imageProduct   String?
+  stock          Int      @default(0)
+  brand          Brand
+  buyPrice       Float    @default(0)
+  category       String
+  createdAt      DateTime @default(now())
+  masterCategory String
+  sellPrice      Float    @default(0)
+  skuManual      String   @unique
+  updatedAt      DateTime @updatedAt
+  Product        Product?
+
+  @@index([brand])
+  @@index([brand, category])
+  @@index([brand, masterCategory])
+  @@index([name])
+}
+
+model Product {
+  id            String          @id @default(cuid())
+  productId     String          @unique
+  sellprice     Float
+  OnSaleProduct OnSaleProduct[]
+  productstock  ProductStock    @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model OnSaleProduct {
+  id            String      @id @default(cuid())
+  productId     String
+  quantity      Int
+  saledate      DateTime    @default(now())
+  transactionId String
+  product       Product     @relation(fields: [productId], references: [productId], onDelete: Cascade)
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@index([productId, transactionId])
+}
+
+model Transaction {
+  id            String          @id @default(cuid())
+  totalAmount   Decimal?
+  paymentAmount Float?          @default(0)
+  changeAmount  Float?          @default(0)
+  status        TransactionStatus @default(SUKSES)
+  isComplete    Boolean         @default(false)
+  createdAt     DateTime        @default(now())
+  products      OnSaleProduct[]
+}
+
+enum TransactionStatus {
+  SUKSES
+  RETUR
+}
+
+
+enum UserRole {
+  OWNER
+  WORKER
+  UNKNOW
+}
+
+model ShopData {
+  id   String @id @default(cuid())
+  name String?
+}
+
+enum Brand {
+  HONDA
+  YAMAHA
+  KAWASAKI
+  SUZUKI
+}
