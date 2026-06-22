@@ -154,7 +154,7 @@ export default function ExpensesPage() {
       rows.push(['', '', '', '', `Total ${categoryLabels[cat] || cat}`, amt, '']);
     });
 
-    const csvContent = [headers, ...rows].map(e => e.join(',')).join('\n');
+    const csvContent = [headers, ...rows].map(e => e.join(';')).join('\n');
     const fileName = `Laporan_Pengeluaran_${format(new Date(), 'yyyy-MM-dd')}.csv`;
 
     if (Capacitor.isNativePlatform()) {

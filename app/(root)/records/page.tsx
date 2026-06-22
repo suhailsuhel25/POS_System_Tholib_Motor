@@ -249,7 +249,7 @@ export default function RecordsPage() {
     rows.push(['', '', '', '', '', '', '', '', '', '', 'TOTAL HUTANG', totalHutang, '', '', '', '', '', '']);
     rows.push(['', '', '', '', '', '', '', '', '', '', 'TOTAL TRANSAKSI', sortedTransactions.length, '', '', '', '', '', '']);
 
-    const csvContent = [headers, ...rows].map(e => e.join(',')).join('\n');
+    const csvContent = [headers, ...rows].map(e => e.join(';')).join('\n');
     const fileName = `Laporan_Penjualan_${startDate}_${endDate}.csv`;
 
     if (Capacitor.isNativePlatform()) {
