@@ -6,7 +6,8 @@ const config: CapacitorConfig = {
   webDir: 'public',
   server: {
     url: 'https://tholib-motor.vercel.app/',
-    cleartext: true
+    cleartext: true,
+    errorPath: 'error.html'
   }
 };
 
