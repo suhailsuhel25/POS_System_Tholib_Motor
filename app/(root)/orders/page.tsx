@@ -65,7 +65,7 @@ export default function KasirPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState<number>(0);
   const [rawPaymentInput, setRawPaymentInput] = useState('');
-  const [discountAmount, setDiscountAmount] = useState<number>(0);
+
   const [rawDiscountInput, setRawDiscountInput] = useState('');
   const [isHutang, setIsHutang] = useState(false);
   const [hutangCustomerName, setHutangCustomerName] = useState('');
@@ -133,11 +133,13 @@ export default function KasirPage() {
   };
 
   const removeFromCart = (id: string) => setCart((prev) => prev.filter((item) => item.id !== id));
-  const clearCart = () => { setCart([]); setPaymentAmount(0); setRawPaymentInput(''); setDiscountAmount(0); setRawDiscountInput(''); };
+  const clearCart = () => { setCart([]); setPaymentAmount(0); setRawPaymentInput(''); setRawDiscountInput(''); };
 
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const discountPercent = Number(rawDiscountInput) || 0;
+  const discountAmount = Math.max(0, Math.floor((subtotal * discountPercent) / 100));
   const total = Math.max(0, subtotal - discountAmount);
+  const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
   const cartBadge = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const processPayment = async () => {
@@ -304,7 +306,7 @@ export default function KasirPage() {
             cart={cart} totalItems={totalItems} total={total} subtotal={subtotal}
             updateQuantity={updateQuantity} removeFromCart={removeFromCart} clearCart={clearCart}
             rawDiscountInput={rawDiscountInput} setRawDiscountInput={setRawDiscountInput}
-            discountAmount={discountAmount} setDiscountAmount={setDiscountAmount}
+            discountAmount={discountAmount}
             rawPaymentInput={rawPaymentInput} setRawPaymentInput={setRawPaymentInput}
             paymentAmount={paymentAmount} setPaymentAmount={setPaymentAmount}
             processingPayment={processingPayment} isHutang={isHutang}
@@ -371,14 +373,14 @@ export default function KasirPage() {
 // ─── Cart Panel Component ───
 function CartPanel({
   cart, totalItems, total, subtotal, updateQuantity, removeFromCart, clearCart,
-  rawDiscountInput, setRawDiscountInput, discountAmount, setDiscountAmount,
+  rawDiscountInput, setRawDiscountInput, discountAmount,
   rawPaymentInput, setRawPaymentInput, paymentAmount, setPaymentAmount,
   processingPayment, isHutang, processPayment, setShowHutangModal,
   isMobile, onClose, barcodeRef, addToCart,
 }: {
   cart: CartItem[]; totalItems: number; total: number; subtotal: number;
   updateQuantity: (id: string, delta: number) => void; removeFromCart: (id: string) => void; clearCart: () => void;
-  rawDiscountInput: string; setRawDiscountInput: (v: string) => void; discountAmount: number; setDiscountAmount: (v: number) => void;
+  rawDiscountInput: string; setRawDiscountInput: (v: string) => void; discountAmount: number;
   rawPaymentInput: string; setRawPaymentInput: (v: string) => void; paymentAmount: number; setPaymentAmount: (v: number) => void;
   processingPayment: boolean; isHutang: boolean; processPayment: () => void; setShowHutangModal: (v: boolean) => void;
   isMobile?: boolean; onClose?: () => void; barcodeRef?: React.RefObject<HTMLInputElement>; addToCart?: (product: any) => void;
@@ -481,8 +483,8 @@ function CartPanel({
             <div className="flex flex-col landscape:flex-row gap-1.5">
               {/* Discount */}
               <div className="flex-1">
-                <input type="number" placeholder="Diskon" value={rawDiscountInput}
-                  onChange={(e) => { setRawDiscountInput(e.target.value); setDiscountAmount(e.target.value ? Number(e.target.value) * 1000 : 0); }}
+                <input type="number" placeholder="Diskon (%)" value={rawDiscountInput}
+                  onChange={(e) => setRawDiscountInput(e.target.value)}
                   className="w-full h-8 landscape:h-7 px-2 text-[10px] font-bold border border-[#DFE1E6] dark:border-[#2C333A] rounded outline-none focus:ring-2 focus:ring-[#0052CC]/30 bg-[#FAFBFC] dark:bg-[#1D2125]"
                 />
               </div>
