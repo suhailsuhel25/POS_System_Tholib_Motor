@@ -464,7 +464,7 @@ export default function RecordsPage() {
                             <div className="text-[10px] opacity-70">{format(new Date(t.createdAt), 'HH:mm:ss')}</div>
                           </td>
                           <td className="px-6 py-4">
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase ${t.status === 'RETUR' ? 'bg-[#FFEBE6] text-[#BF2600]' : 'bg-[#E3FCEF] text-[#006644]'}`}>
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase ${t.status === 'RETUR' ? 'bg-[#FFEBE6] text-[#BF2600]' : t.status === 'HUTANG' ? 'bg-[#FFF0B3] text-[#974F0C]' : 'bg-[#E3FCEF] text-[#006644]'}`}>
                               {t.status || 'SUKSES'}
                             </span>
                           </td>

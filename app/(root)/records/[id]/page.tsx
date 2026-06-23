@@ -26,9 +26,11 @@ import { BluetoothPrinterService } from '@/lib/services/bluetooth-printer';
 import { buildReceiptBase64 } from '@/lib/services/receipt-builder';
 
 const statusConfig: Record<string, { label: string; color: string; bg: string; icon: any }> = {
+  SUKSES: { label: 'Lunas / Sukses', color: 'text-[#00875A]', bg: 'bg-[#E3FCEF]', icon: CheckCircle2 },
+  HUTANG: { label: 'Hutang (Belum Lunas)', color: 'text-[#FF8B00]', bg: 'bg-[#FFFAE6]', icon: Clock },
+  RETUR: { label: 'Retur', color: 'text-[#FF5630]', bg: 'bg-[#FFEBE6]', icon: RotateCcw },
   COMPLETED: { label: 'Selesai', color: 'text-[#00875A]', bg: 'bg-[#E3FCEF]', icon: CheckCircle2 },
   CANCELLED: { label: 'Dibatalkan', color: 'text-[#DE350B]', bg: 'bg-[#FFEBE6]', icon: XCircle },
-  RETUR: { label: 'Retur', color: 'text-[#FF5630]', bg: 'bg-[#FFEBE6]', icon: RotateCcw },
   PENDING: { label: 'Dalam Proses', color: 'text-[#FF8B00]', bg: 'bg-[#FFFAE6]', icon: Clock },
 };
 
@@ -147,7 +149,7 @@ export default function DetailPage({ params }: { params: { id: string } }) {
   if (!transaction) return null;
 
   const createdAt = transaction.createdAt ? new Date(transaction.createdAt) : new Date();
-  const status = statusConfig[transaction.status] || statusConfig.COMPLETED;
+  const status = statusConfig[transaction.status] || statusConfig.SUKSES;
   const StatusIcon = status.icon;
   const items = transaction.products || [];
   const subtotal = items.reduce((sum: number, item: any) => sum + (Number(item.product?.sellprice || 0) * item.quantity), 0);
