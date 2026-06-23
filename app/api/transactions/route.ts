@@ -106,6 +106,8 @@ export const POST = async (request: Request) => {
 
         const insufficientStockItems: string[] = [];
 
+        const queries = [];
+
         for (const item of batch) {
           const productStock = stockMap.get(item.id);
 
@@ -121,37 +123,45 @@ export const POST = async (request: Request) => {
           const serverPrice = Number(productStock.sellPrice);
           totalAmount += serverPrice * item.quantity;
 
-          await tx.productStock.updateMany({
-            where: {
-              id: item.id,
-              stock: { gte: item.quantity },
-            },
-            data: {
-              stock: { decrement: item.quantity },
-            },
-          });
+          queries.push(
+            tx.productStock.updateMany({
+              where: {
+                id: item.id,
+                stock: { gte: item.quantity },
+              },
+              data: {
+                stock: { decrement: item.quantity },
+              },
+            })
+          );
 
-          const product = await tx.product.upsert({
-            where: { productId: item.id },
-            update: {},
-            create: {
-              productId: item.id,
-              sellprice: productStock.sellPrice,
-            },
-          });
+          queries.push(
+            tx.product.upsert({
+              where: { productId: item.id },
+              update: {},
+              create: {
+                productId: item.id,
+                sellprice: productStock.sellPrice,
+              },
+            })
+          );
 
-          await tx.onSaleProduct.create({
-            data: {
-              productId: product.productId,
-              quantity: item.quantity,
-              transactionId: transaction.id,
-            },
-          });
+          queries.push(
+            tx.onSaleProduct.create({
+              data: {
+                productId: item.id,
+                quantity: item.quantity,
+                transactionId: transaction.id,
+              },
+            })
+          );
         }
 
         if (insufficientStockItems.length > 0) {
           throw new Error(`Stok tidak mencukupi untuk: ${insufficientStockItems.join(', ')}`);
         }
+
+        await Promise.all(queries);
       }
 
       const finalDiscount = Number(discountAmount || 0);
