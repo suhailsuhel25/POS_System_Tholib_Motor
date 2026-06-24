@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import useSWR from 'swr';
+import axios from '@/lib/axios';
 import { Search, Filter, Plus, MoreHorizontal, AlertTriangle, ChevronDown, X, Trash2, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
