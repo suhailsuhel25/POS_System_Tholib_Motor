@@ -39,8 +39,8 @@ export default function RecordsPage() {
   const { data: profitRes, isLoading: profitLoading } = useSWR(`/api/profit?start=${startIso}&end=${endIso}`, fetcher);
 
   const loading = transLoading || profitLoading;
-  const transactions = transData?.transactions || [];
-  const profitData = profitRes?.groupedData || [];
+  const transactions: any[] = transData?.transactions || [];
+  const profitData: any[] = profitRes?.groupedData || [];
 
   // Statistics calculation
   const stats = useMemo(() => {
