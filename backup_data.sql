@@ -2,7 +2,6 @@
 -- PostgreSQL database dump
 --
 
-\restrict desL64CnFnyKLbqbBxR1pBIj5ZlFzaUiGUedvsPn1iDjBCT3aFusT36NdZ70ivD
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.10 (Ubuntu 17.10-0ubuntu0.25.10.1)

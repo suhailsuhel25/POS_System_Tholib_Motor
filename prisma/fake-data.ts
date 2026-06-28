@@ -111,9 +111,31 @@ export function fakeShopDataComplete() {
     name: undefined,
   };
 }
+export function fakeBengkel() {
+  return {
+    name: faker.person.fullName(),
+    phone: undefined,
+    address: undefined,
+    notes: undefined,
+    nextPaymentAt: undefined,
+    updatedAt: faker.date.anytime(),
+  };
+}
+export function fakeBengkelComplete() {
+  return {
+    id: faker.string.uuid(),
+    name: faker.person.fullName(),
+    phone: undefined,
+    address: undefined,
+    notes: undefined,
+    paymentCycle: 7,
+    nextPaymentAt: undefined,
+    createdAt: new Date(),
+    updatedAt: faker.date.anytime(),
+  };
+}
 export function fakeDebt() {
   return {
-    customerName: faker.lorem.words(5),
     amount: new Decimal(faker.number.float()),
     notes: undefined,
     paidAt: undefined,
@@ -123,7 +145,7 @@ export function fakeDebt() {
 export function fakeDebtComplete() {
   return {
     id: faker.string.uuid(),
-    customerName: faker.lorem.words(5),
+    bengkelId: undefined,
     amount: new Decimal(faker.number.float()),
     transactionId: faker.string.uuid(),
     notes: undefined,
@@ -131,6 +153,29 @@ export function fakeDebtComplete() {
     paidAt: undefined,
     createdAt: new Date(),
     updatedAt: faker.date.anytime(),
+  };
+}
+export function fakeDebtPayment() {
+  return {
+    totalPaid: new Decimal(faker.number.float()),
+    notes: undefined,
+  };
+}
+export function fakeDebtPaymentComplete() {
+  return {
+    id: faker.string.uuid(),
+    bengkelId: faker.string.uuid(),
+    totalPaid: new Decimal(faker.number.float()),
+    discount: new Decimal(0),
+    notes: undefined,
+    createdAt: new Date(),
+  };
+}
+export function fakeDebtPaymentItemComplete() {
+  return {
+    id: faker.string.uuid(),
+    paymentId: faker.string.uuid(),
+    debtId: faker.string.uuid(),
   };
 }
 export function fakeCategory() {

@@ -111,21 +111,66 @@ enum Brand {
   SUZUKI
 }
 
-model Debt {
-  id             String      @id @default(cuid())
-  customerName   String
-  amount         Decimal     @db.Decimal(15, 2)
-  transactionId  String      @unique
-  transaction    Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
-  notes          String?
-  isPaid         Boolean     @default(false)
-  paidAt         DateTime?
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+// Entitas bengkel tetap yang punya piutang
+model Bengkel {
+  id            String        @id @default(cuid())
+  name          String        @unique
+  phone         String?
+  address       String?
+  notes         String?
+  paymentCycle  Int           @default(7)
+  nextPaymentAt DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  debts         Debt[]
+  payments      DebtPayment[]
 
-  @@index([customerName])
+  @@index([name])
+}
+
+model Debt {
+  id             String            @id @default(cuid())
+  bengkelId      String?
+  bengkel        Bengkel?          @relation(fields: [bengkelId], references: [id])
+  amount         Decimal           @db.Decimal(15, 2)
+  transactionId  String            @unique
+  transaction    Transaction       @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  notes          String?
+  isPaid         Boolean           @default(false)
+  paidAt         DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  paymentItems   DebtPaymentItem[]
+
+  @@index([bengkelId])
   @@index([isPaid])
   @@index([createdAt])
+}
+
+// Rekaman setiap kali bengkel melakukan pembayaran hutang
+model DebtPayment {
+  id          String            @id @default(cuid())
+  bengkelId   String
+  bengkel     Bengkel           @relation(fields: [bengkelId], references: [id])
+  totalPaid   Decimal           @db.Decimal(15, 2)
+  discount    Decimal           @default(0) @db.Decimal(15, 2)
+  notes       String?
+  createdAt   DateTime          @default(now())
+  debtItems   DebtPaymentItem[]
+
+  @@index([bengkelId])
+  @@index([createdAt])
+}
+
+// Detail hutang yang dilunasi dalam satu sesi pembayaran
+model DebtPaymentItem {
+  id        String      @id @default(cuid())
+  paymentId String
+  payment   DebtPayment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  debtId    String
+  debt      Debt        @relation(fields: [debtId], references: [id])
+
+  @@unique([paymentId, debtId])
 }
 
 model Category {
@@ -135,13 +180,13 @@ model Category {
 }
 
 model Expense {
-  id          String      @id @default(cuid())
+  id          String          @id @default(cuid())
   description String
-  amount      Decimal     @db.Decimal(15, 2)
+  amount      Decimal         @db.Decimal(15, 2)
   category    ExpenseCategory @default(LAINNYA)
   notes       String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 
   @@index([category])
   @@index([createdAt])
@@ -151,5 +196,6 @@ enum ExpenseCategory {
   RESTOK
   OPERASIONAL
   GAJI
+  PIUTANG_MASUK
   LAINNYA
 }

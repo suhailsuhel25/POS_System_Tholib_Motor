@@ -13,10 +13,7 @@ export const PATCH = async (
       return NextResponse.json({ error: 'isPaid harus boolean' }, { status: 400 });
     }
 
-    const existingDebt = await prisma.debt.findUnique({
-      where: { id: params.id },
-    });
-
+    const existingDebt = await prisma.debt.findUnique({ where: { id: params.id } });
     if (!existingDebt) {
       return NextResponse.json({ error: 'Hutang tidak ditemukan' }, { status: 404 });
     }
@@ -32,28 +29,16 @@ export const PATCH = async (
       where: { id: params.id },
       data: updateData,
       include: {
-        transaction: {
-          select: {
-            id: true,
-            totalAmount: true,
-            createdAt: true,
-          },
-        },
+        bengkel: { select: { id: true, name: true } },
+        transaction: { select: { id: true, totalAmount: true, createdAt: true } },
       },
     });
 
-    // Sync transaction status with debt status
-    if (isPaid) {
-      await prisma.transaction.update({
-        where: { id: existingDebt.transactionId },
-        data: { status: 'SUKSES' },
-      });
-    } else {
-      await prisma.transaction.update({
-        where: { id: existingDebt.transactionId },
-        data: { status: 'HUTANG' },
-      });
-    }
+    // Sync transaction status
+    await prisma.transaction.update({
+      where: { id: existingDebt.transactionId },
+      data: { status: isPaid ? 'SUKSES' : 'HUTANG' },
+    });
 
     return NextResponse.json({
       ...debt,
@@ -70,14 +55,11 @@ export const PATCH = async (
 };
 
 export const DELETE = async (
-  request: Request,
+  _request: Request,
   { params }: { params: { id: string } }
 ) => {
   try {
-    const existingDebt = await prisma.debt.findUnique({
-      where: { id: params.id },
-    });
-
+    const existingDebt = await prisma.debt.findUnique({ where: { id: params.id } });
     if (!existingDebt) {
       return NextResponse.json({ error: 'Hutang tidak ditemukan' }, { status: 404 });
     }
@@ -88,9 +70,7 @@ export const DELETE = async (
       data: { status: 'SUKSES' },
     });
 
-    await prisma.debt.delete({
-      where: { id: params.id },
-    });
+    await prisma.debt.delete({ where: { id: params.id } });
 
     return NextResponse.json({ message: 'Hutang berhasil dihapus' }, { status: 200 });
   } catch (error: any) {

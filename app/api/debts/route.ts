@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 const createDebtSchema = z.object({
-  customerName: z.string().min(1, 'Nama pelanggan wajib diisi'),
+  bengkelId: z.string().min(1, 'ID bengkel wajib diisi'),
   amount: z.number().positive('Jumlah hutang harus lebih dari 0'),
   transactionId: z.string().min(1, 'ID transaksi wajib diisi'),
   notes: z.string().optional(),
@@ -13,23 +13,19 @@ export const GET = async (request: Request) => {
   try {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status'); // 'paid', 'unpaid', or null for all
+    const bengkelId = searchParams.get('bengkelId');
 
     const where: any = {};
-    if (status === 'paid') {
-      where.isPaid = true;
-    } else if (status === 'unpaid') {
-      where.isPaid = false;
-    }
+    if (status === 'paid') where.isPaid = true;
+    else if (status === 'unpaid') where.isPaid = false;
+    if (bengkelId) where.bengkelId = bengkelId;
 
     const debts = await prisma.debt.findMany({
       where,
       include: {
+        bengkel: { select: { id: true, name: true } },
         transaction: {
-          select: {
-            id: true,
-            totalAmount: true,
-            createdAt: true,
-          },
+          select: { id: true, totalAmount: true, createdAt: true },
         },
       },
       orderBy: { createdAt: 'desc' },
@@ -58,46 +54,36 @@ export const POST = async (request: Request) => {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.errors.map(e => e.message).join(', ') },
+        { error: parsed.error.errors.map((e) => e.message).join(', ') },
         { status: 400 }
       );
     }
 
-    const { customerName, amount, transactionId, notes } = parsed.data;
+    const { bengkelId, amount, transactionId, notes } = parsed.data;
+
+    // Validasi bengkel ada
+    const bengkel = await prisma.bengkel.findUnique({ where: { id: bengkelId } });
+    if (!bengkel) {
+      return NextResponse.json({ error: 'Bengkel tidak ditemukan' }, { status: 404 });
+    }
 
     // Check if transaction exists
-    const transaction = await prisma.transaction.findUnique({
-      where: { id: transactionId },
-    });
-
+    const transaction = await prisma.transaction.findUnique({ where: { id: transactionId } });
     if (!transaction) {
       return NextResponse.json({ error: 'Transaksi tidak ditemukan' }, { status: 404 });
     }
 
     // Check if debt already exists for this transaction
-    const existingDebt = await prisma.debt.findUnique({
-      where: { transactionId },
-    });
-
+    const existingDebt = await prisma.debt.findUnique({ where: { transactionId } });
     if (existingDebt) {
       return NextResponse.json({ error: 'Transaksi ini sudah memiliki catatan hutang' }, { status: 400 });
     }
 
     const debt = await prisma.debt.create({
-      data: {
-        customerName,
-        amount: amount,
-        transactionId,
-        notes: notes || null,
-      },
+      data: { bengkelId, amount, transactionId, notes: notes || null },
       include: {
-        transaction: {
-          select: {
-            id: true,
-            totalAmount: true,
-            createdAt: true,
-          },
-        },
+        bengkel: { select: { id: true, name: true } },
+        transaction: { select: { id: true, totalAmount: true, createdAt: true } },
       },
     });
 
