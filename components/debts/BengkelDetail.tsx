@@ -10,8 +10,8 @@ import { Button } from '@/components/ui/button';
 import PaymentModal from './PaymentModal';
 import AddBengkelModal from './AddBengkelModal';
 import {
-  Building2, Phone, MapPin, Clock, CreditCard, ChevronRight,
-  AlertCircle, CheckCircle2, Package, MoreHorizontal, Edit, Trash2, History
+  Building2, Phone, MapPin, Clock, CreditCard, ChevronRight, ChevronDown,
+  AlertCircle, CheckCircle2, Package, MoreHorizontal, Edit, Trash2, History, ShoppingBag
 } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -31,15 +31,39 @@ interface Bengkel {
   totalUnpaid: number; unpaidCount: number;
 }
 
+interface ProductItem {
+  id: string;
+  quantity: number;
+  product: {
+    productstock: {
+      name: string;
+      brand: string;
+    };
+  };
+}
+
 interface Debt {
   id: string; amount: number; isPaid: boolean; createdAt: string;
   notes: string | null; paidAt: string | null;
-  transaction: { id: string; totalAmount: number; createdAt: string };
+  paidSoFar?: number; // akumulasi cicilan
+  transaction: {
+    id: string; totalAmount: number; createdAt: string;
+    products?: ProductItem[];
+  };
 }
 
 interface DebtPayment {
   id: string; totalPaid: number; discount: number; notes: string | null; createdAt: string;
-  debtItems: { id: string; debt: { id: string; amount: number; createdAt: string } }[];
+  debtItems: {
+    id: string;
+    debt: {
+      id: string; amount: number; createdAt: string; notes: string | null;
+      transaction?: {
+        id: string;
+        products?: ProductItem[];
+      };
+    };
+  }[];
 }
 
 interface BengkelDetailProps {
@@ -58,12 +82,34 @@ function getPaymentStatusInfo(nextPaymentAt: string | null, unpaidCount: number)
   return { label: `Jatuh tempo ${format(new Date(nextPaymentAt), 'dd MMM yyyy', { locale: idLocale })}`, color: 'text-[#0052CC] bg-[#E9F2FF]', icon: Clock };
 }
 
+/** Renders a compact product list from transaction products */
+function ProductList({ products }: { products?: ProductItem[] }) {
+  if (!products || products.length === 0) return null;
+  return (
+    <div className="mt-2 space-y-1">
+      {products.map((item) => (
+        <div key={item.id} className="flex items-center gap-2 text-xs text-[#44546F] dark:text-[#9FADBC]">
+          <ShoppingBag className="w-3 h-3 shrink-0 text-[#626F86]" />
+          <span className="truncate">
+            {item.product.productstock.name}
+          </span>
+          <span className="shrink-0 text-[#626F86] dark:text-[#8C9BAB]">×{item.quantity}</span>
+          <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[#EBECF0] dark:bg-[#2C333A] text-[#44546F] dark:text-[#9FADBC]">
+            {item.product.productstock.brand}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function BengkelDetail({ bengkel, onMutate, onDeleted }: BengkelDetailProps) {
   const [activeTab, setActiveTab] = useState<'unpaid' | 'paid' | 'history'>('unpaid');
   const [showPayModal, setShowPayModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [expandedDebts, setExpandedDebts] = useState<Set<string>>(new Set());
 
   const { data, mutate } = useSWR(`/api/bengkel/${bengkel.id}/debts`, fetcher);
   const debts: Debt[] = data?.debts || [];
@@ -72,6 +118,15 @@ export default function BengkelDetail({ bengkel, onMutate, onDeleted }: BengkelD
 
   const unpaidDebts = debts.filter((d) => !d.isPaid);
   const paidDebts = debts.filter((d) => d.isPaid);
+
+  const toggleExpanded = (id: string) => {
+    setExpandedDebts((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const handleDelete = async () => {
     try {
@@ -220,32 +275,70 @@ export default function BengkelDetail({ bengkel, onMutate, onDeleted }: BengkelD
                 <p className="text-sm">Semua tagihan sudah lunas</p>
               </div>
             ) : (
-              unpaidDebts.map((debt) => (
-                <div key={debt.id} className="bg-white dark:bg-[#22272B] rounded-lg border border-[#DFE1E6] dark:border-[#2C333A] p-3">
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs font-bold text-[#0052CC] dark:text-[#579DFF]">
-                      #{debt.transaction.id.slice(-8).toUpperCase()}
-                    </span>
-                    <span className="text-base font-black text-[#172B4D] dark:text-white">
-                      {fmt(debt.amount)}
-                    </span>
+              unpaidDebts.map((debt) => {
+                const isExpanded = expandedDebts.has(debt.id);
+                const products = debt.transaction.products || [];
+                return (
+                  <div key={debt.id} className="bg-white dark:bg-[#22272B] rounded-lg border border-[#DFE1E6] dark:border-[#2C333A] p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-xs font-bold text-[#0052CC] dark:text-[#579DFF]">
+                        #{debt.transaction.id.slice(-8).toUpperCase()}
+                      </span>
+                      <span className="text-base font-black text-[#172B4D] dark:text-white">
+                        {fmt(debt.amount)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-xs text-[#626F86] dark:text-[#8C9BAB]">
+                        {format(new Date(debt.createdAt), 'EEEE, dd MMM yyyy • HH:mm', { locale: idLocale })}
+                      </span>
+                      <span className="text-[10px] bg-[#FFF0B3] text-[#974F0C] font-bold px-1.5 py-0.5 rounded">
+                        BELUM LUNAS
+                      </span>
+                    </div>
+                    {/* Progress cicilan jika sudah ada pembayaran sebagian */}
+                    {(debt.paidSoFar || 0) > 0 && (
+                      <div className="mt-2 bg-[#F4F5F7] dark:bg-[#1D2125] rounded-lg p-2">
+                        <div className="flex items-center justify-between text-[10px] mb-1">
+                          <span className="text-[#626F86] dark:text-[#8C9BAB]">Sudah dibayar cicilan</span>
+                          <span className="font-bold text-[#36B37E]">{fmt(debt.paidSoFar!)}</span>
+                        </div>
+                        <div className="w-full h-1.5 bg-[#DFE1E6] dark:bg-[#2C333A] rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-[#36B37E] rounded-full transition-all"
+                            style={{ width: `${Math.min(100, (debt.paidSoFar! / debt.amount) * 100)}%` }}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between text-[10px] mt-1">
+                          <span className="text-[#974F0C] font-semibold">Sisa: {fmt(debt.amount - debt.paidSoFar!)}</span>
+                          <span className="text-[#626F86]">{Math.round((debt.paidSoFar! / debt.amount) * 100)}%</span>
+                        </div>
+                      </div>
+                    )}
+                    {debt.notes && (
+                      <p className="text-xs text-[#626F86] mt-1 flex items-center gap-1">
+                        <Package className="w-3 h-3" />
+                        {debt.notes}
+                      </p>
+                    )}
+
+                    {/* Product details */}
+                    {products.length > 0 && (
+                      <>
+                        <button
+                          onClick={() => toggleExpanded(debt.id)}
+                          className="mt-2 flex items-center gap-1 text-xs font-semibold text-[#0052CC] dark:text-[#579DFF] hover:underline"
+                        >
+                          <ShoppingBag className="w-3 h-3" />
+                          {products.length} barang
+                          {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                        </button>
+                        {isExpanded && <ProductList products={products} />}
+                      </>
+                    )}
                   </div>
-                  <div className="flex items-center justify-between mt-1">
-                    <span className="text-xs text-[#626F86] dark:text-[#8C9BAB]">
-                      {format(new Date(debt.createdAt), 'EEEE, dd MMM yyyy • HH:mm', { locale: idLocale })}
-                    </span>
-                    <span className="text-[10px] bg-[#FFF0B3] text-[#974F0C] font-bold px-1.5 py-0.5 rounded">
-                      BELUM LUNAS
-                    </span>
-                  </div>
-                  {debt.notes && (
-                    <p className="text-xs text-[#626F86] mt-1 flex items-center gap-1">
-                      <Package className="w-3 h-3" />
-                      {debt.notes}
-                    </p>
-                  )}
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         )}
@@ -259,26 +352,51 @@ export default function BengkelDetail({ bengkel, onMutate, onDeleted }: BengkelD
                 <p className="font-semibold">Belum ada hutang yang lunas</p>
               </div>
             ) : (
-              paidDebts.map((debt) => (
-                <div key={debt.id} className="bg-white dark:bg-[#22272B] rounded-lg border border-[#DFE1E6] dark:border-[#2C333A] p-3 opacity-75">
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs font-bold text-[#626F86]">
-                      #{debt.transaction.id.slice(-8).toUpperCase()}
-                    </span>
-                    <span className="text-base font-black text-[#172B4D] dark:text-white line-through opacity-60">
-                      {fmt(debt.amount)}
-                    </span>
+              paidDebts.map((debt) => {
+                const isExpanded = expandedDebts.has(`paid-${debt.id}`);
+                const products = debt.transaction.products || [];
+                return (
+                  <div key={debt.id} className="bg-white dark:bg-[#22272B] rounded-lg border border-[#DFE1E6] dark:border-[#2C333A] p-3 opacity-80">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-xs font-bold text-[#626F86]">
+                        #{debt.transaction.id.slice(-8).toUpperCase()}
+                      </span>
+                      <span className="text-base font-black text-[#172B4D] dark:text-white line-through opacity-60">
+                        {fmt(debt.amount)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-xs text-[#626F86] dark:text-[#8C9BAB]">
+                        {format(new Date(debt.createdAt), 'dd MMM yyyy', { locale: idLocale })}
+                      </span>
+                      <span className="text-[10px] bg-[#E3FCEF] text-[#006644] font-bold px-1.5 py-0.5 rounded">
+                        LUNAS {debt.paidAt ? format(new Date(debt.paidAt), 'dd MMM', { locale: idLocale }) : ''}
+                      </span>
+                    </div>
+                    {debt.notes && (
+                      <p className="text-xs text-[#626F86] mt-1 flex items-center gap-1">
+                        <Package className="w-3 h-3" />
+                        {debt.notes}
+                      </p>
+                    )}
+
+                    {/* Product details */}
+                    {products.length > 0 && (
+                      <>
+                        <button
+                          onClick={() => toggleExpanded(`paid-${debt.id}`)}
+                          className="mt-2 flex items-center gap-1 text-xs font-semibold text-[#626F86] hover:text-[#0052CC] dark:hover:text-[#579DFF] hover:underline"
+                        >
+                          <ShoppingBag className="w-3 h-3" />
+                          {products.length} barang
+                          {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                        </button>
+                        {isExpanded && <ProductList products={products} />}
+                      </>
+                    )}
                   </div>
-                  <div className="flex items-center justify-between mt-1">
-                    <span className="text-xs text-[#626F86] dark:text-[#8C9BAB]">
-                      {format(new Date(debt.createdAt), 'dd MMM yyyy', { locale: idLocale })}
-                    </span>
-                    <span className="text-[10px] bg-[#E3FCEF] text-[#006644] font-bold px-1.5 py-0.5 rounded">
-                      LUNAS {debt.paidAt ? format(new Date(debt.paidAt), 'dd MMM', { locale: idLocale }) : ''}
-                    </span>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         )}
@@ -305,6 +423,51 @@ export default function BengkelDetail({ bengkel, onMutate, onDeleted }: BengkelD
                     {payment.discount > 0 && <p>Diskon: {fmt(payment.discount)}</p>}
                     {payment.notes && <p>Catatan: {payment.notes}</p>}
                   </div>
+
+                  {/* Detail per debt item with products */}
+                  {payment.debtItems.length > 0 && (
+                    <div className="mt-3 space-y-2 border-t border-[#DFE1E6] dark:border-[#2C333A] pt-3">
+                      {payment.debtItems.map((item) => {
+                        const itemProducts = item.debt.transaction?.products || [];
+                        const isExpanded = expandedDebts.has(`hist-${item.id}`);
+                        return (
+                          <div key={item.id} className="bg-[#F4F5F7] dark:bg-[#1D2125] rounded-lg p-2.5">
+                            <div className="flex items-center justify-between">
+                              <span className="font-mono text-[10px] font-bold text-[#626F86]">
+                                #{item.debt.transaction?.id ? item.debt.transaction.id.slice(-8).toUpperCase() : '—'}
+                              </span>
+                              <span className="text-xs font-bold text-[#172B4D] dark:text-white">
+                                {fmt(item.debt.amount)}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between mt-0.5">
+                              <span className="text-[10px] text-[#626F86]">
+                                {format(new Date(item.debt.createdAt), 'dd MMM yyyy', { locale: idLocale })}
+                              </span>
+                              {item.debt.notes && (
+                                <span className="text-[10px] text-[#626F86] truncate max-w-[140px]">
+                                  {item.debt.notes}
+                                </span>
+                              )}
+                            </div>
+                            {itemProducts.length > 0 && (
+                              <>
+                                <button
+                                  onClick={() => toggleExpanded(`hist-${item.id}`)}
+                                  className="mt-1.5 flex items-center gap-1 text-[10px] font-semibold text-[#0052CC] dark:text-[#579DFF] hover:underline"
+                                >
+                                  <ShoppingBag className="w-2.5 h-2.5" />
+                                  {itemProducts.length} barang
+                                  {isExpanded ? <ChevronDown className="w-2.5 h-2.5" /> : <ChevronRight className="w-2.5 h-2.5" />}
+                                </button>
+                                {isExpanded && <ProductList products={itemProducts} />}
+                              </>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               ))
             )}

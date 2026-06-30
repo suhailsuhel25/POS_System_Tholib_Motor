@@ -20,6 +20,8 @@ export const GET = async (request: Request) => {
 
     if (category && category !== 'ALL') {
       where.category = category;
+    } else {
+      where.category = { not: 'PIUTANG_MASUK' };
     }
 
     if (startDate && endDate) {

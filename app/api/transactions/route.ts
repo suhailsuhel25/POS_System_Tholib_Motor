@@ -75,7 +75,7 @@ export const POST = async (request: Request) => {
       );
     }
 
-    const { items, paymentAmount, changeAmount, discountAmount } = parsed.data;
+    const { items, paymentAmount, changeAmount, discountAmount, isHutang, bengkelId, hutangNotes } = parsed.data;
 
     const customId = await generateUniqueId();
 
@@ -166,10 +166,27 @@ export const POST = async (request: Request) => {
 
       const finalDiscount = Number(discountAmount || 0);
       const finalTotal = Math.max(0, totalAmount - finalDiscount);
+      
+      const isActuallyHutang = isHutang && Number(paymentAmount || 0) < finalTotal;
+      const finalStatus = isActuallyHutang ? 'HUTANG' : 'SUKSES';
+
+      if (isActuallyHutang && bengkelId) {
+        await tx.debt.create({
+          data: {
+            bengkelId: bengkelId,
+            amount: finalTotal - Number(paymentAmount || 0),
+            transactionId: transaction.id,
+            notes: hutangNotes || null,
+          }
+        });
+      }
 
       return tx.transaction.update({
         where: { id: transaction.id },
-        data: { totalAmount: finalTotal },
+        data: { 
+          totalAmount: finalTotal,
+          status: finalStatus,
+        },
       });
     }, { timeout: 30000, maxWait: 15000 });
 

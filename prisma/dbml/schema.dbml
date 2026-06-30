@@ -172,12 +172,12 @@ Ref: OnSaleProduct.productId > Product.productId [delete: Cascade]
 
 Ref: OnSaleProduct.transactionId > Transaction.id [delete: Cascade]
 
-Ref: Debt.bengkelId > Bengkel.id
+Ref: Debt.bengkelId > Bengkel.id [delete: Cascade]
 
 Ref: Debt.transactionId - Transaction.id [delete: Cascade]
 
-Ref: DebtPayment.bengkelId > Bengkel.id
+Ref: DebtPayment.bengkelId > Bengkel.id [delete: Cascade]
 
 Ref: DebtPaymentItem.paymentId > DebtPayment.id [delete: Cascade]
 
-Ref: DebtPaymentItem.debtId > Debt.id
+Ref: DebtPaymentItem.debtId > Debt.id [delete: Cascade]

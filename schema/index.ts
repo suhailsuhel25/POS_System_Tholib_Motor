@@ -77,6 +77,9 @@ export const createTransactionSchema = z.object({
   paymentAmount: z.number().min(0, 'Jumlah pembayaran tidak boleh negatif').default(0),
   changeAmount: z.number().min(0, 'Jumlah kembalian tidak boleh negatif').default(0),
   discountAmount: z.number().min(0, 'Diskon tidak boleh negatif').default(0),
+  isHutang: z.boolean().optional().default(false),
+  bengkelId: z.string().optional(),
+  hutangNotes: z.string().optional(),
 });
 
 export const updateTransactionSchema = z.object({

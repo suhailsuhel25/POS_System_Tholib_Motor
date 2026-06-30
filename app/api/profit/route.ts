@@ -116,6 +116,13 @@ export async function GET(req: NextRequest) {
       if (!existingData) return;
 
       const amount = Number(expense.amount);
+
+      if (expense.category === 'PIUTANG_MASUK') {
+        existingData.revenue += amount;
+        existingData.profit += amount;
+        return; // do not count as expense
+      }
+
       existingData.expenses += amount;
 
       if (expense.category === 'RESTOK') {

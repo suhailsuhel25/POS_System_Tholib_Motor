@@ -40,15 +40,51 @@ export const GET = async (
       where: { bengkelId: params.id },
       include: {
         debtItems: {
-          include: { debt: { select: { id: true, amount: true, createdAt: true } } },
+          include: {
+            debt: {
+              select: {
+                id: true, amount: true, createdAt: true, notes: true,
+                transaction: {
+                  select: {
+                    id: true,
+                    products: {
+                      include: {
+                        product: { include: { productstock: { select: { name: true, brand: true } } } }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
         },
       },
       orderBy: { createdAt: 'desc' },
     });
 
+    // Hitung paidSoFar per hutang (akumulasi cicilan yg sudah masuk)
+    const debtPaymentItems = await prisma.debtPaymentItem.findMany({
+      where: { debtId: { in: debts.map((d) => d.id) } },
+      include: {
+        payment: {
+          select: { totalPaid: true, discount: true, debtItems: { select: { debtId: true } } },
+        },
+      },
+    });
+
+    // Hitung total yang sudah dibayar per debtId
+    const paidSoFarMap: Record<string, number> = {};
+    for (const item of debtPaymentItems) {
+      const debtCount = item.payment.debtItems.length;
+      const paymentTotal = Number(item.payment.totalPaid) + Number(item.payment.discount);
+      const share = paymentTotal / debtCount;
+      paidSoFarMap[item.debtId] = (paidSoFarMap[item.debtId] || 0) + share;
+    }
+
     const serializedDebts = debts.map((d) => ({
       ...d,
       amount: Number(d.amount),
+      paidSoFar: Math.round(paidSoFarMap[d.id] || 0),
       transaction: {
         ...d.transaction,
         totalAmount: d.transaction.totalAmount ? Number(d.transaction.totalAmount) : 0,

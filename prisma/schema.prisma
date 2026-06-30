@@ -131,7 +131,7 @@ model Bengkel {
 model Debt {
   id             String            @id @default(cuid())
   bengkelId      String?
-  bengkel        Bengkel?          @relation(fields: [bengkelId], references: [id])
+  bengkel        Bengkel?          @relation(fields: [bengkelId], references: [id], onDelete: Cascade)
   amount         Decimal           @db.Decimal(15, 2)
   transactionId  String            @unique
   transaction    Transaction       @relation(fields: [transactionId], references: [id], onDelete: Cascade)
@@ -151,7 +151,7 @@ model Debt {
 model DebtPayment {
   id          String            @id @default(cuid())
   bengkelId   String
-  bengkel     Bengkel           @relation(fields: [bengkelId], references: [id])
+  bengkel     Bengkel           @relation(fields: [bengkelId], references: [id], onDelete: Cascade)
   totalPaid   Decimal           @db.Decimal(15, 2)
   discount    Decimal           @default(0) @db.Decimal(15, 2)
   notes       String?
@@ -168,7 +168,7 @@ model DebtPaymentItem {
   paymentId String
   payment   DebtPayment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
   debtId    String
-  debt      Debt        @relation(fields: [debtId], references: [id])
+  debt      Debt        @relation(fields: [debtId], references: [id], onDelete: Cascade)
 
   @@unique([paymentId, debtId])
 }
