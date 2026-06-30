@@ -149,21 +149,20 @@ export default function KasirPage() {
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
   const cartBadge = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-  const processPayment = async () => {
+  const processPayment = async (forceIsHutang?: boolean) => {
     if (cart.length === 0) return;
-    if (isHutang && !hutangBengkelId) { setErrorAlert({ open: true, message: 'Pilih bengkel untuk mencatat hutang' }); return; }
+    const isHutangActive = forceIsHutang !== undefined ? forceIsHutang : isHutang;
+    
+    if (isHutangActive && !hutangBengkelId) { setErrorAlert({ open: true, message: 'Pilih bengkel untuk mencatat hutang' }); return; }
     setProcessingPayment(true);
     try {
       const items = cart.map(item => ({ id: item.id, quantity: item.quantity, price: item.price }));
       const changeAmount = paymentAmount >= total ? paymentAmount - total : 0;
-      const response = await axios.post('/api/transactions', { items, paymentAmount, changeAmount, discountAmount });
+      const response = await axios.post('/api/transactions', { 
+        items, paymentAmount, changeAmount, discountAmount,
+        isHutang: isHutangActive, bengkelId: isHutangActive ? hutangBengkelId : undefined, hutangNotes: isHutangActive ? hutangNotes : undefined
+      });
       if (response.status === 201) {
-        if (isHutang) {
-          const debtAmount = Math.max(0, total - paymentAmount);
-          if (debtAmount > 0) {
-            try { await axios.post('/api/debts', { bengkelId: hutangBengkelId, amount: debtAmount, transactionId: response.data.id, notes: hutangNotes }); } catch (e) { console.error('Failed to create debt:', e); }
-          }
-        }
         setReceiptData({ id: response.data.id, items: cart, total, paymentAmount, changeAmount, discountAmount, subtotal });
         setReceiptDialogOpen(true);
         try {
@@ -342,7 +341,7 @@ export default function KasirPage() {
       {/* HUTANG MODAL */}
       {showHutangModal && (
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/50" onClick={() => setShowHutangModal(false)}>
-          <div className="bg-white dark:bg-[#22272B] w-full md:max-w-md rounded-t-2xl md:rounded-2xl p-5 safe-area-bottom" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white dark:bg-[#22272B] w-full md:max-w-md rounded-t-2xl md:rounded-2xl p-5 pb-6" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-base font-bold text-[#172B4D] dark:text-white mb-4 flex items-center gap-2">
               <Receipt className="w-5 h-5 text-[#FF8B00]" /> Catat Hutang Bengkel
             </h3>
@@ -368,19 +367,19 @@ export default function KasirPage() {
                 onChange={(e) => setHutangNotes(e.target.value)}
                 className="w-full h-12 px-4 text-sm border border-[#DFE1E6] dark:border-[#2C333A] rounded-lg outline-none focus:ring-2 focus:ring-[#FF8B00]/30 bg-white dark:bg-[#1D2125]"
               />
-              <div className="p-3 bg-[#FFFAE6] dark:bg-[#3A2800] rounded-lg text-center">
+              <div className="p-4 bg-[#FFFAE6] dark:bg-[#3A2800] rounded-lg text-center">
                 <span className="text-sm text-[#626F86]">Hutang: </span>
                 <span className="text-lg font-bold text-[#DE350B]">Rp{total.toLocaleString('id-ID')}</span>
               </div>
-              <div className="flex gap-2">
-                <button onClick={() => { setShowHutangModal(false); setIsHutang(false); setHutangBengkelId(''); setHutangNotes(''); }}
-                  className="flex-1 h-12 rounded-lg border border-[#DFE1E6] dark:border-[#2C333A] font-bold text-sm text-[#44546F] dark:text-[#9FADBC]"
-                >Batal</button>
-                <button onClick={() => { setIsHutang(true); setShowHutangModal(false); }}
-                  disabled={!hutangBengkelId}
-                  className="flex-1 h-12 rounded-lg bg-[#FF8B00] text-white font-bold text-sm disabled:opacity-50"
-                >Simpan & Proses</button>
-              </div>
+            </div>
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => { setShowHutangModal(false); setIsHutang(false); setHutangBengkelId(''); setHutangNotes(''); }}
+                className="flex-1 h-12 rounded-lg border border-[#DFE1E6] dark:border-[#2C333A] font-bold text-sm text-[#44546F] dark:text-[#9FADBC]"
+              >Batal</button>
+              <button onClick={() => { setIsHutang(true); setShowHutangModal(false); processPayment(true); }}
+                disabled={!hutangBengkelId}
+                className="flex-1 h-12 rounded-lg bg-[#FF8B00] text-white font-bold text-sm disabled:opacity-50"
+              >Simpan & Proses</button>
             </div>
           </div>
         </div>
